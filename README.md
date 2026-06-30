@@ -1,6 +1,6 @@
 # OCP Issue Fix & RCA Repository
 
-**Cluster**: lab.ocp.local | OCP 4.15.59 | Proxmox (3 masters + 2 workers)
+**Cluster**: lab.ocp.local | OCP 4.16.55 | Proxmox (3 masters + 2 workers)
 
 This repository is a living record of issues encountered on the OCP lab cluster.
 Each issue has its own folder containing the RCA, fix steps, and any scripts used.
@@ -12,6 +12,7 @@ Each issue has its own folder containing the RCA, fix steps, and any scripts use
 | # | Title | Date | Severity | Status |
 |---|---|---|---|---|
 | [01](issues/01-web-console-unreachable/) | Web Console Unreachable After Cluster Restart | 2026-06-30 | High | Resolved |
+| [02](issues/02-minor-version-upgrade-4.15-to-4.16/) | Minor Version Upgrade 4.15.59 → 4.16.55 | 2026-06-30 | Medium | Completed |
 
 ---
 
@@ -41,7 +42,7 @@ OCP_Issue-Fix_RCA/
 
 | Resource | Value |
 |---|---|
-| OCP Version | 4.15.59 |
+| OCP Version | 4.16.55 |
 | Console | `https://console-openshift-console.apps.lab.ocp.local` |
 | API | `https://api.lab.ocp.local:6443` |
 | HAProxy (Load Balancer) | `svc-infra.ocp.local` — 192.168.29.10 |
