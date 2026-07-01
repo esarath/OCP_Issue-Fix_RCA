@@ -22,6 +22,7 @@
 | **Storage capacity** | 🔴 **Blocking** | Single default StorageClass `nfs-storage` (`nfs-client-provisioner`, `ReclaimPolicy=Retain`, `AllowVolumeExpansion=false`), backed by an NFS export (`/var/nfs/dynamic`) on `svc-infra`'s root disk (`/dev/sda1`, 50GB total) — only **38GB free**. A single Windows Server VM disk alone commonly exceeds that. `StorageProfile nfs-storage` also has no explicit `claimPropertySets` in `.status` — CDI may not reliably infer access/volume mode for this provisioner without manual configuration |
 | VM networking | ⚠️ Needs setup | No `NetworkAttachmentDefinition` exists cluster-wide. Without one, migrated VMs only get the default pod network (masquerade/NAT) — they will **not** retain their original IP or be directly reachable from the existing LAN. Required before migrating anything that isn't disposable/test-only |
 | MTV source provider | ℹ️ Info | Only the built-in `host` (OCP) provider exists, `Ready`/`Connected`/inventory populated — confirms MTV's own reconciliation into this cluster works correctly. No vCenter/ESXi provider configured yet (expected — that's step 1 of the actual migration, see [MIGRATION-PROCEDURE.md](MIGRATION-PROCEDURE.md)) |
+| [NESTED-VCENTER-SETUP.md](NESTED-VCENTER-SETUP.md) | Step-by-step nested vCenter + ESXi lab setup on VMware Workstation Pro (Windows 10), used since the original vCenter at 192.168.29.50 was unreachable during the pilot precheck |
 
 **Verdict:** The MTV/OpenShift Virtualization software stack is correctly installed and healthy. The cluster's current **compute and storage sizing** is the blocker, not the software. Both need headroom added before attempting a real migration — see remediation below.
 
@@ -62,6 +63,7 @@ oc patch storageprofile nfs-storage --type=merge -p '{
 ### 3. VM networking
 
 **Fix:** create a Linux bridge `NodeNetworkConfigurationPolicy` (kubernetes-nmstate, bundled with OpenShift Virtualization) on the worker nodes, bridging to the physical/VLAN interface those VMs need to land on, then a matching `NetworkAttachmentDefinition` for MTV's network mapping to target. Full steps in [MIGRATION-PROCEDURE.md](MIGRATION-PROCEDURE.md) Phase 1.
+| [NESTED-VCENTER-SETUP.md](NESTED-VCENTER-SETUP.md) | Step-by-step nested vCenter + ESXi lab setup on VMware Workstation Pro (Windows 10), used since the original vCenter at 192.168.29.50 was unreachable during the pilot precheck |
 
 ---
 
@@ -70,6 +72,7 @@ oc patch storageprofile nfs-storage --type=merge -p '{
 | File | Description |
 |---|---|
 | [MIGRATION-PROCEDURE.md](MIGRATION-PROCEDURE.md) | Full step-by-step migration procedure: prerequisites, provider setup, network/storage mapping, plan creation, execution for Linux and Windows VMs |
+| [NESTED-VCENTER-SETUP.md](NESTED-VCENTER-SETUP.md) | Step-by-step nested vCenter + ESXi lab setup on VMware Workstation Pro (Windows 10), used since the original vCenter at 192.168.29.50 was unreachable during the pilot precheck |
 | [POST-MIGRATION-CHECKLIST.md](POST-MIGRATION-CHECKLIST.md) | Post-migration verification checklist (common, Linux-specific, Windows-specific, cutover, rollback) |
 
 ---
