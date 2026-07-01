@@ -14,6 +14,7 @@ Each issue has its own folder containing the RCA, fix steps, and any scripts use
 | [01](issues/01-web-console-unreachable/) | Web Console Unreachable After Cluster Restart | 2026-06-30 | High | Resolved |
 | [02](issues/02-minor-version-upgrade-4.15-to-4.16/) | Minor Version Upgrade 4.15.59 → 4.16.55 | 2026-06-30 | Medium | Completed |
 | [03](issues/03-ovn-kubernetes-crash-loop-after-reboot/) | OVN-Kubernetes Crash Loop on Rebooted Nodes (Web Console Down) | 2026-07-01 | High | Resolved |
+| [04](issues/04-oc-client-server-version-skew/) | `oc` Client/Server Version Skew After Cluster Upgrade | 2026-07-01 | Low | Resolved |
 
 ---
 

@@ -90,3 +90,13 @@ RHCOS: 416.94.202601071926-0
 Kernel: 5.14.0-427.105.1.el9_4.x86_64
 CRI-O: 1.29.13
 ```
+
+---
+
+## Known Follow-Up
+
+This upgrade validated the cluster's own state post-upgrade, but did not include a
+step to refresh the `oc`/`kubectl` client binaries on the bastion host — those
+silently drifted to 4.15.59 while the server moved to 4.16.55. Discovered and fixed
+in [Issue 04](../04-oc-client-server-version-skew/). Future upgrade runs should add
+a bastion client refresh to post-upgrade validation.
