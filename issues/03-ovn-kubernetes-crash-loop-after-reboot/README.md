@@ -7,7 +7,37 @@
 | **Status** | Resolved |
 | **Affected** | Web console, ingress routers, DNS, master-1, worker-1, worker-2 |
 | **Root Cause** | `ovnkube-controller` panics on startup in a self-referential webhook race, crash-looping indefinitely and blocking CNI configuration |
-| **Resolution Time** | ~35 minutes |
+| **Resolution Time** | ~35 minutes (manual) — now auto-remediated, see below |
+
+---
+
+## Permanent Fix (Automated)
+
+This is a real bug in the `ovnkube-controller` binary shipped in OCP 4.16.55 (crash signature matches the class of startup races tracked upstream around `nodeNetworkControllerManager.Stop()`/`Start()`, e.g. [OCPBUGS-10889](https://redhat.atlassian.net/browse/OCPBUGS-10889)) — it cannot be patched from the cluster side, only worked around, and only a future OCP z-stream upgrade would fix it at the source. See [Upgrade Path](#upgrade-path-real-root-cause-fix) below.
+
+Until then, [`scripts/fix-ovn-crashloop.sh`](scripts/fix-ovn-crashloop.sh) automates the manual remediation below and runs **unattended via cron every 5 minutes**, so the cluster self-heals from this specific failure after any reboot or shutdown without anyone needing to run a fix by hand:
+
+```
+2-59/5 * * * * /home/centos/fix-ovn-crashloop.sh
+```
+
+(staggered 2 minutes off the existing `*/5 * * * * /home/centos/approve-csrs.sh` cert-renewal job so the two don't collide)
+
+What it does, safely, every run:
+1. Scans all nodes for the exact signature (`Ready=False`, `reason=KubeletNotReady`, message contains `No CNI configuration file`) **and only acts if that condition has persisted ≥180s** — this rules out a node that's simply still booting normally within its first couple of minutes.
+2. If any nodes match, loosens the `network-node-identity` webhook to `failurePolicy: Ignore`.
+3. Force-deletes each affected node's `ovnkube-node` pod **one at a time**, waiting up to 2 minutes for that node to report `Ready` before moving to the next — avoiding the blast-radius ripple described below.
+4. Reverts the webhook back to `failurePolicy: Fail` unconditionally before exiting (via a shell `trap`, so this happens even on error or an interrupted run).
+5. Logs everything to `/home/centos/ovn-crashloop-fix.log`.
+
+It is a no-op (single fast read, no changes) on every run where nothing is wrong.
+
+Install/verify on a new bastion:
+```bash
+cp scripts/fix-ovn-crashloop.sh /home/centos/fix-ovn-crashloop.sh
+chmod +x /home/centos/fix-ovn-crashloop.sh
+(crontab -l 2>/dev/null; echo "2-59/5 * * * * /home/centos/fix-ovn-crashloop.sh") | crontab -
+```
 
 ---
 
@@ -35,7 +65,7 @@ Ready=False reason=KubeletNotReady
 
 ---
 
-## Quick Fix
+## Quick Fix (Manual — for reference / if cron is disabled)
 
 ```bash
 # 1. Confirm it's the OVN webhook race, not cert expiry (0 pending CSRs)
@@ -92,21 +122,34 @@ Patching the webhook to `failurePolicy: Ignore` and **then** deleting all 3 pods
 
 ---
 
+## Upgrade Path (Real Root-Cause Fix)
+
+The auto-remediation script is a safety net, not a fix for the underlying binary. The crash signature (`nodeNetworkControllerManager.Stop()` invoked mid-`Start()`, nil-pointer in gateway reconcile) matches a known class of OVN-Kubernetes startup races that Red Hat has fixed upstream in later releases (e.g. [OCPBUGS-10889](https://redhat.atlassian.net/browse/OCPBUGS-10889), originally targeted at 4.14.0 — this cluster hit an apparently-related regression on 4.16.55, so a newer 4.16.z or 4.17+ should be evaluated). Before the next planned maintenance window:
+
+1. Check the OCP release notes / errata for the current 4.16.z for any fix referencing `ovnkube-controller`, `network-node-identity`, or `nodeNetworkControllerManager`.
+2. If a fixed z-stream is available, upgrade (see [Issue 02](../02-minor-version-upgrade-4.15-to-4.16/) for this cluster's upgrade runbook).
+3. Keep the cron remediation in place regardless — it's cheap insurance and covers any other cause of the same symptom, not just this specific bug.
+
+---
+
 ## Files
 
 | File | Description |
 |---|---|
 | [RCA.md](RCA.md) | Full root cause analysis, panic trace, diagnosis steps, and recovery timeline |
+| [scripts/fix-ovn-crashloop.sh](scripts/fix-ovn-crashloop.sh) | Automated detection + one-at-a-time remediation script, run via cron every 5 minutes |
 
 ---
 
 ## Prevention
 
+- **Automated**: `fix-ovn-crashloop.sh` runs every 5 minutes via cron and self-heals this specific signature — no manual action needed after a reboot or shutdown/restart cycle.
 - Reboot masters/workers **one at a time**, not in bulk, so any OVN-K startup race only affects a single node and its neighbors can absorb the transient load.
 - After any node reboot, check for this signature before assuming cert expiry ([Issue 01](../01-web-console-unreachable/)):
   ```bash
   oc get csr | grep -c Pending   # 0 here rules out Issue 01
   ssh core@<node> "sudo crictl ps -a --name ovnkube-controller"  # climbing ATTEMPT count = this issue
   ```
-- Always revert the `network-node-identity` webhook `failurePolicy` back to `Fail` as soon as affected nodes report `Ready` — it is a temporary loosening of admission control cluster-wide.
-- Check for cordoned nodes left over from the incident (`oc get nodes` → `SchedulingDisabled`) — uncordon before declaring recovery complete, since ingress routers can't schedule otherwise.
+- Always revert the `network-node-identity` webhook `failurePolicy` back to `Fail` as soon as affected nodes report `Ready` — it is a temporary loosening of admission control cluster-wide. (The script guarantees this via a shell `trap`.)
+- Check for cordoned nodes left over from an incident (`oc get nodes` → `SchedulingDisabled`) — the automated script does **not** uncordon nodes (an intentionally cordoned node for maintenance could otherwise be undone unexpectedly). Uncordon manually before declaring recovery complete, since ingress routers can't schedule otherwise.
+- Track the upgrade path above so the workaround eventually becomes unnecessary.

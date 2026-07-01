@@ -203,6 +203,27 @@ oc get validatingwebhookconfigurations network-node-identity.openshift.io \
 
 ---
 
+## Permanent Automated Remediation
+
+Manual remediation (Phases 2-5 above) is now automated in [`scripts/fix-ovn-crashloop.sh`](scripts/fix-ovn-crashloop.sh) and installed via cron to run every 5 minutes:
+
+```
+2-59/5 * * * * /home/centos/fix-ovn-crashloop.sh
+```
+
+Key safety properties baked into the script, based on what went wrong during manual remediation on 2026-07-01:
+
+- **Staleness gate**: only acts on a node if its `Ready=False/KubeletNotReady/No CNI configuration file` condition has persisted ≥180s, so a node that's simply still booting normally isn't touched.
+- **One node at a time**: pods are deleted sequentially, waiting up to 120s for each node to reach `Ready` before moving to the next. This directly addresses the blast-radius incident where deleting 3 `ovnkube-node` pods simultaneously destabilized 2 previously-healthy masters.
+- **Guaranteed webhook revert**: a shell `trap` on `EXIT` reverts `network-node-identity`'s `failurePolicy` back to `Fail` no matter how the script exits (success, error, or interrupted mid-run), so a failed cron run can never leave cluster-wide admission control permanently loosened.
+- **Disjoint from Issue 01**: the detection condition (`status=False`, `reason=KubeletNotReady`) is structurally different from the cert-expiry signature (`status=Unknown`, `reason=NodeStatusUnknown`), so this script and `approve-csrs.sh` never fight over the same symptom; both are scheduled via cron (staggered 2 minutes apart) and can run independently.
+- **No-op when healthy**: a single fast read pass (`oc get nodes` conditions) with no writes when nothing matches — safe to run every 5 minutes indefinitely.
+- **Does not touch cordon state**: deliberately out of scope, since auto-uncordoning could undo an intentional maintenance cordon.
+
+This does not fix the underlying `ovnkube-controller` bug — it contains the blast radius and self-heals within one cron cycle (≤5 min) of a reboot, instead of requiring a human to notice the console is down and manually run the remediation. See [Prevention → Option E](#option-e--track-the-upstream-fix) for the actual root-cause fix path.
+
+---
+
 ## Environment Reference (lab.ocp.local)
 
 | Resource | Value |
@@ -242,6 +263,10 @@ The `Ignore` patch is a deliberate, temporary loosening of cluster-wide admissio
 ### Option D — Verify cordon state after any incident response
 
 Nodes cordoned during earlier troubleshooting (this cluster had both workers cordoned since a prior incident) can silently block recovery of unrelated issues. Always check `oc get nodes` for `SchedulingDisabled` as part of final verification, not just `Ready`/`NotReady`.
+
+### Option E — Track the upstream fix
+
+The panic signature (`nodeNetworkControllerManager.Stop()` called mid-`Start()`, nil-pointer during gateway reconcile) matches a known class of upstream OVN-Kubernetes startup races — see [OCPBUGS-10889](https://redhat.atlassian.net/browse/OCPBUGS-10889) and its fix ([openshift/ovn-kubernetes#1608](https://github.com/openshift/ovn-kubernetes), downstream-merged, originally targeted at OCP 4.14.0). Since this cluster is on 4.16.55 and still hit an apparently-related regression, check future 4.16.z errata for a fix referencing `ovnkube-controller` / `network-node-identity` / `nodeNetworkControllerManager`, and upgrade when available (see [Issue 02](../02-minor-version-upgrade-4.15-to-4.16/RCA.md) for the upgrade runbook). The cron-based auto-remediation (above) should stay in place regardless, as insurance against any other trigger of the same symptom.
 
 ---
 
