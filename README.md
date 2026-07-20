@@ -16,6 +16,7 @@ Each issue has its own folder containing the RCA, fix steps, and any scripts use
 | [03](issues/03-ovn-kubernetes-crash-loop-after-reboot/) | OVN-Kubernetes Crash Loop on Rebooted Nodes (Web Console Down) | 2026-07-01 | High | Resolved |
 | [04](issues/04-oc-client-server-version-skew/) | `oc` Client/Server Version Skew After Cluster Upgrade | 2026-07-01 | Low | Resolved |
 | [05](issues/05-mtv-vm-migration-readiness/) | MTV VM Migration Readiness (ESXi/vCenter → OpenShift Virtualization) | 2026-07-01 | N/A (Planned Migration) | Precheck complete — Blocked on capacity |
+| [06](issues/06-master-2-transient-notready-after-reboot/) | `master-2` Transient NotReady / `<unknown>` Metrics After Node Reboot | 2026-07-20 | Low | Resolved (self-healed) |
 
 ---
 
