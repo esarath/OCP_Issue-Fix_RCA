@@ -10,6 +10,12 @@ the cluster's update channel was changed twice by someone logged in as
 one password looks identical in the audit log, so the change could not be
 traced to an individual. This checklist prevents that from happening again.
 
+> **Placeholder convention**: anything wrapped in angle brackets, like
+> `<new-username>` or `<generated-password>`, is a placeholder — replace the
+> *entire* token, including the `<` and `>` characters, with your actual
+> value. Never type a placeholder literally; if you do, the command will
+> fail or (worse) silently create an account named `<new-username>`.
+
 ---
 
 ## Step 1 — Add the new user to the HTPasswd identity provider

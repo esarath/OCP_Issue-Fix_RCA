@@ -25,6 +25,14 @@ action `babus` takes going forward shows up as `babus` in the audit log — not
 are separate, more disruptive changes to be done deliberately, not bundled
 into a routine user-add.
 
+> **Placeholder convention**: `<generated-password>` in the commands below is
+> a placeholder standing in for the actual password value that was generated
+> at the time — not literal text. The real password is never written into
+> this repo (it was shared with the requester once, out-of-band, and is not
+> reproduced here). If you're following this as a template for onboarding a
+> *different* user, generate a fresh password and substitute it in place of
+> the whole `<generated-password>` token, angle brackets included.
+
 ---
 
 ## Steps Executed

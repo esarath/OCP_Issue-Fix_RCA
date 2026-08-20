@@ -5,6 +5,14 @@
 This repository is a living record of issues encountered on the OCP lab cluster.
 Each issue has its own folder containing the RCA, fix steps, and any scripts used.
 
+**Reading commands in this repo**: anything wrapped in angle brackets —
+`<new-username>`, `<generated-password>`, `<target-namespace>`, `<date>`,
+etc. — is a **placeholder**, not literal text. Replace the *entire* token,
+including the `<` and `>` characters, with your actual value before running
+the command. Typing a placeholder literally will either fail outright or,
+worse, silently create a resource named e.g. `<new-username>`. This applies
+throughout every `issues/` and `checklists/` document.
+
 ---
 
 ## Issue Index
