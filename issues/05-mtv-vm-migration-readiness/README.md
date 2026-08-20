@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-07-01 |
 | **Type** | Planned Migration |
-| **Status** | Precheck complete — **Blocked** on capacity, ready once resolved |
+| **Status** | Precheck complete — **Blocked** on capacity, ready once resolved. **Superseded 2026-08-20**: migration plan abandoned, CNV/OpenShift Virtualization uninstalled to reclaim resources — see [issue 12](../12-uninstall-idle-cnv-reclaim-resources/README.md) |
 | **Scope** | Migrate Linux and Windows VMs from ESXi/vCenter to OCP (lab.ocp.local) via MTV 2.7.12 |
 | **Target Namespace(s)** | TBD per workload — create per-application namespace, don't dump all VMs into one namespace |
 
