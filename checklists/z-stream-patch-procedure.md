@@ -11,6 +11,15 @@ the channel-drift/attribution incident) · [issue 09](../issues/09-upgrade-4.18-
 (earlier z-stream, different self-recovered image-pull stall — same failure
 *category* twice now).
 
+**External references reviewed while drafting this**: Red Hat's official
+["Preparing to update a cluster"](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/updating_clusters/preparing-to-update-a-cluster)
+doc blocks automated fetches (403) — it should be opened and cross-checked
+manually before relying on this document alone, since its exact current
+wording couldn't be verified here. [kubernetes.recipes' OCP update process
+explainer](https://kubernetes.recipes/recipes/configuration/openshift-cluster-update-process-explained/)
+was fetchable and added the CVO/MCO mechanics and duration formula folded
+into §1 and §4 below — treat it as a secondary, non-Red-Hat source.
+
 ---
 
 ## 1. What's actually changing
@@ -31,6 +40,16 @@ A z-stream bump touches:
 data changes, no API compatibility risk. The risk surface is entirely about
 *execution* (node drains, image pulls, brief control-plane disruption), not
 about *compatibility*.
+
+**Mechanics, for context on what "in progress" actually looks like**: the
+CVO applies its manifests in ordered "Runlevels" (roughly 03→90), waiting for
+each affected operator to report stable before moving to the next — this is
+the CVO phase (typically 60–120 min industry-wide, though this cluster's own
+z-streams have finished faster once nodes are counted separately, see §4).
+Once the CVO phase reaches the node-facing operators, the MCO takes over
+per-node: **Cordon → Drain → Update → Reboot → Uncordon**, one node at a time
+by default (`maxUnavailable: 1`), respecting any PodDisruptionBudgets in its
+way (§5).
 
 ---
 
@@ -72,6 +91,20 @@ about *compatibility*.
 
 **Recommended maintenance window**: 1.5–2 hours, to absorb a repeat of the known stall pattern without needing to extend the window live.
 
+**General planning formula** (for scaling this estimate to a different node
+count in the future): `CVO phase (60–120 min) + (node count / maxUnavailable
+× per-node update time)`. This cluster's own history has run faster than the
+top end of that CVO range, but plan against the formula rather than
+optimistic history when node count changes.
+
+**Tuning knob**: the worker `MachineConfigPool`'s `maxUnavailable` can be
+raised above the default `1` to drain multiple workers in parallel and
+shorten the compute-pool phase — at the direct cost of more simultaneous
+workload disruption. **Never change this on the control-plane MachineConfigPool**
+— masters must stay sequential to preserve etcd/API quorum throughout. With
+only 2 workers here, this knob isn't worth touching for this upgrade, but
+it's the lever to reach for on a larger worker fleet.
+
 ---
 
 ## 5. Known issues that could arise (grounded in this cluster's actual history)
@@ -81,7 +114,8 @@ about *compatibility*.
 | Worker `machine-config-daemon` stalls on image pull | **Moderate — has happened twice already** | Issues 08, 09 | Do NOT panic-restore. Both prior incidents self-recovered via kubelet retry within ~10–40 min. Follow the diagnosis sequence in issue 09's RCA before considering manual intervention: `oc get clusterversion` → `oc get co` → `oc get mcp` → node annotations → wait through one retry cycle |
 | VM live migration failure/timeout | Low-moderate, untested at scale here | CNV installed, PDBs present, no prior incident on record | Coordinate with VM owners beforehand; have a manual stop/start fallback plan per VM |
 | A single-replica app blips during worker drain | Depends on what's deployed | Not yet inventoried — do §3 before the window | Get owner sign-off if flagged |
-| Insights/conditionalUpdates risk appears once 4.19.43 is visible on `stable-4.19` | Low | None flagged as of this writing (checked: `conditionalUpdates: none`) | Re-check `oc get clusterversion version -o json` → `.status.conditionalUpdates` right before the window — this is target-specific and could change |
+| **An overly restrictive PDB blocks the drain outright** (not just delays it) | Low here — current PDBs (§ pre-flight, `oc get pdb -A`) all look default/standard | None on this cluster yet, but this is a known MCO failure mode generally, not hypothetical | If a worker drain hangs, check `oc get pdb -A` for a `minAvailable`/`maxUnavailable` that the current pod count can't satisfy before assuming it's another image-pull stall — the diagnosis path differs (PDB fix / temporary override vs. wait-it-out) |
+| Insights/conditionalUpdates risk appears once 4.19.43 is visible on `stable-4.19` | Low | None flagged as of this writing (checked: `conditionalUpdates: none`) | Re-check `oc get clusterversion version -o json` → `.status.conditionalUpdates` right before the window — this is target-specific and could change. Note: a conditional risk alone doesn't block the update, only an operator explicitly reporting `Upgradeable=False` does |
 | CVO patch itself introduces a genuine regression | Low (z-stream, RHSA-scoped) | No prior incident of this type on this cluster | This is what the etcd backup + restore plan (§7) exists for |
 
 ---
