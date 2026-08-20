@@ -20,6 +20,7 @@ Each issue has its own folder containing the RCA, fix steps, and any scripts use
 | [07](issues/07-recurring-cert-expiry-cron-blindspot/) | Recurring Kubelet Cert Expiry After Extended Shutdown; Cron Automation Blind Spot Found & Fixed | 2026-08-04 | Medium | Resolved |
 | [08](issues/08-upgrade-4.19.41-to-4.19.42-and-channel-drift/) | Upgrade 4.19.41 → 4.19.42: Worker Image Pull Stall (IPv6 DNS) + Post-Upgrade Channel Drift | 2026-08-20 | Low / Medium | Resolved |
 | [09](issues/09-upgrade-4.18-to-4.19-image-pull-timeout/) | Upgrade 4.18.50 → 4.19.41: Master Node Stuck on Extensions Image Pull | 2026-08-18 | Medium | Resolved (self-recovered) |
+| [10](issues/10-onboard-babus-cluster-admin/) | Onboard `babus` as Named Cluster-Admin (Patching & Upgrade Duties) | 2026-08-20 | N/A (Administration) | Completed |
 
 ---
 
