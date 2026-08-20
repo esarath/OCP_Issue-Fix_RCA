@@ -39,7 +39,8 @@ OCP_Issue-Fix_RCA/
 │
 ├── checklists/                          # Operational checklists
 │   ├── cluster-startup.md              # Run on every cluster restart
-│   └── admin-user-onboarding.md        # Add a traceable named cluster-admin user
+│   ├── admin-user-onboarding.md        # Add a traceable named cluster-admin user
+│   └── z-stream-patch-procedure.md     # Z-stream patch upgrade: pre/post checks, downtime, backup/restore plan
 │
 └── scripts/                             # Shared/reusable scripts
     └── approve-csrs.sh                 # (symlink to latest version)
