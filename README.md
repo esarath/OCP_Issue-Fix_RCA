@@ -1,6 +1,6 @@
 # OCP Issue Fix & RCA Repository
 
-**Cluster**: lab.ocp.local | OCP 4.16.55 | Proxmox (3 masters + 2 workers)
+**Cluster**: lab.ocp.local | OCP 4.19.42 | Proxmox (3 masters + 2 workers)
 
 This repository is a living record of issues encountered on the OCP lab cluster.
 Each issue has its own folder containing the RCA, fix steps, and any scripts used.
@@ -18,6 +18,8 @@ Each issue has its own folder containing the RCA, fix steps, and any scripts use
 | [05](issues/05-mtv-vm-migration-readiness/) | MTV VM Migration Readiness (ESXi/vCenter → OpenShift Virtualization) | 2026-07-01 | N/A (Planned Migration) | Precheck complete — Blocked on capacity |
 | [06](issues/06-master-2-transient-notready-after-reboot/) | `master-2` Transient NotReady / `<unknown>` Metrics After Node Reboot | 2026-07-20 | Low | Resolved (self-healed) |
 | [07](issues/07-recurring-cert-expiry-cron-blindspot/) | Recurring Kubelet Cert Expiry After Extended Shutdown; Cron Automation Blind Spot Found & Fixed | 2026-08-04 | Medium | Resolved |
+| [08](issues/08-upgrade-4.19.41-to-4.19.42-and-channel-drift/) | Upgrade 4.19.41 → 4.19.42: Worker Image Pull Stall (IPv6 DNS) + Post-Upgrade Channel Drift | 2026-08-20 | Low / Medium | Resolved |
+| [09](issues/09-upgrade-4.18-to-4.19-image-pull-timeout/) | Upgrade 4.18.50 → 4.19.41: Master Node Stuck on Extensions Image Pull | 2026-08-18 | Medium | Resolved (self-recovered) |
 
 ---
 
@@ -35,7 +37,8 @@ OCP_Issue-Fix_RCA/
 │           └── approve-csrs.sh         # Automated recovery script
 │
 ├── checklists/                          # Operational checklists
-│   └── cluster-startup.md              # Run on every cluster restart
+│   ├── cluster-startup.md              # Run on every cluster restart
+│   └── admin-user-onboarding.md        # Add a traceable named cluster-admin user
 │
 └── scripts/                             # Shared/reusable scripts
     └── approve-csrs.sh                 # (symlink to latest version)
@@ -47,7 +50,7 @@ OCP_Issue-Fix_RCA/
 
 | Resource | Value |
 |---|---|
-| OCP Version | 4.16.55 |
+| OCP Version | 4.19.42 |
 | Console | `https://console-openshift-console.apps.lab.ocp.local` |
 | API | `https://api.lab.ocp.local:6443` |
 | HAProxy (Load Balancer) | `svc-infra.ocp.local` — 192.168.29.10 |
