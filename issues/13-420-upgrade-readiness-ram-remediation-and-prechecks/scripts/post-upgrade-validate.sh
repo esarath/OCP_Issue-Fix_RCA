@@ -51,17 +51,17 @@ else
     echo "$NOT_READY" | sed 's/^/    /'
 fi
 
-if [ -n "$EXPECTED_VERSION" ]; then
-    EXPECTED_KUBELET="v1.$(echo $EXPECTED_VERSION | cut -d. -f2)"
-    WRONG_VER=$(oc get nodes --no-headers 2>/dev/null | \
-      awk -v ver="$EXPECTED_KUBELET" '$NF !~ ver {print $1, $NF}' || true)
-    if [ -z "$WRONG_VER" ]; then
-        green "All nodes on expected kubelet version (matching $EXPECTED_KUBELET)"
-    else
-        red "Nodes on wrong kubelet version:"
-        echo "$WRONG_VER" | sed 's/^/    /'
-    fi
+DISTINCT_KUBELETS=$(oc get nodes --no-headers 2>/dev/null | awk '{print $NF}' | sort -u)
+KUBELET_COUNT=$(echo "$DISTINCT_KUBELETS" | wc -l)
+if [ "$KUBELET_COUNT" -eq 1 ]; then
+    green "All nodes on the same kubelet version ($DISTINCT_KUBELETS)"
+else
+    red "Nodes on inconsistent kubelet versions (expected all 5 to match):"
+    oc get nodes --no-headers 2>/dev/null | awk '{print "    "$1, $NF}'
 fi
+# Note: OCP y-stream != kubelet minor version (e.g. OCP 4.19.x ships kubelet
+# v1.32.x, not v1.19.x) — there's no reliable string-derivable mapping, so
+# this only checks fleet consistency, not a computed expected string.
 
 header "4. ALL CLUSTER OPERATORS HEALTHY"
 UNHEALTHY=$(oc get co --no-headers 2>/dev/null | awk '$3!="True" || $4!="False" || $5!="False"')
