@@ -1,5 +1,14 @@
 # Checklist — Minor (Y-Stream) Version Upgrade Procedure (e.g. 4.19 → 4.20)
 
+> **What this document is, in plain terms:** OpenShift is the software that
+> runs this whole cluster. Every so often it needs a version upgrade — the
+> same idea as updating the OS on your phone or laptop, just for an entire
+> fleet of 5 servers that has to stay working the whole time. This checklist
+> is the step-by-step playbook for the *bigger* kind of upgrade (a "minor"
+> or "y-stream" upgrade, e.g. `4.19 → 4.20`), which is a more significant
+> jump than a routine patch. §1 below explains exactly what makes it bigger
+> and why that matters, in plain language.
+
 **Use this when**: applying a minor/y-stream OpenShift update via the CVO —
 a bigger step than a z-stream (`checklists/z-stream-patch-procedure.md`):
 API deprecations are possible, Kubernetes minor version changes, and every
@@ -16,7 +25,10 @@ pull rate limit, all fixed live) · [issue 04](../issues/04-oc-client-server-ver
 (bastion `oc` client silently drifted a version behind after that upgrade) ·
 [issues 08, 09](../issues/08-upgrade-4.19.41-to-4.19.42-and-channel-drift/README.md)
 (two separate self-recovered worker image-pull stalls during MCO rollout,
-different root cause each time — treat as a recurring category, not a fluke).
+different root cause each time — treat as a recurring category, not a fluke) ·
+[**issue 14**](../issues/14-419-to-420-upgrade-execution/README.md) (`4.19.43→4.20.35`,
+2026-08-27 — **the first actual completed run of this checklist**, captured in
+per-node depth; several corrections below come directly from it).
 
 ---
 
@@ -34,6 +46,17 @@ different root cause each time — treat as a recurring category, not a fluke).
 **Net effect**: budget more time, more validation, and treat "it worked last
 z-stream" as zero evidence for this upgrade.
 
+> **In plain English:** think of the version number `4.19.43` as three dials.
+> The last dial (`.43`, the **z-stream**) is a small patch — bug fixes and
+> security updates, same rulebook, nothing changes about how the pieces fit
+> together. The middle dial (`.19`→`.20`, the **y-stream**, what this
+> checklist is for) is a bigger jump — it's like upgrading the actual engine
+> under the hood (Kubernetes itself moves up a version), so some old parts
+> genuinely stop being supported, everything has to restart to pick up the
+> new engine, and there's no going back to the old engine once you've
+> started. That's why this checklist is longer and more careful than the
+> z-stream one.
+
 ---
 
 ## 2. Pre-flight validation checklist
@@ -50,7 +73,7 @@ Run [`scripts/pre-upgrade-check.sh`](../issues/13-420-upgrade-readiness-ram-reme
 - [ ] `oc adm top nodes` + `oc get nodes -o jsonpath='...status.allocatable.memory'` — record current headroom as the pre-upgrade baseline; a y-stream's overlapping-component rollout needs more transient headroom than a z-stream, so don't skip this even if RAM was already validated days earlier — re-check same-day
 - [ ] Node disk usage under ~50% on every node (`df -h /var`) — release image pulls add real pressure; prune (`crictl rmi --prune` via `oc debug node/<n> -- chroot /host`) if any node is tight
 - [ ] `oc get pdb -A | awk '$5==0'` — zero PDBs with `allowedDisruptions=0` (these will hard-block a node drain, not just delay it); if any exist, plan to scale up the workload or temporarily delete/relax the PDB before that node's drain window
-- [ ] `oc get csv -A` — enumerate every installed OLM operator; for each, confirm the vendor's own release notes state explicit support for the target y-stream (don't infer from "same major, prior minor worked") — as of this writing, this cluster's only non-platform operator is `openshift-lightspeed`
+- [ ] `oc get csv -A` — enumerate every installed OLM operator; for each, confirm the vendor's own release notes state explicit support for the target y-stream (don't infer from "same major, prior minor worked") — **as of issue 14 (2026-08-27), this cluster has zero non-platform operators installed** (`openshift-lightspeed` was removed the same day, after its 4.20 compatibility couldn't be definitively confirmed — see project history); re-populate this checklist item if anything gets installed before the next y-stream
 - [ ] `oc get vm -A` / `oc get vmi -A` — if this ever returns results again (CNV reinstalled), treat VM live-migration planning as mandatory per §3 of the z-stream checklist; as of the 4.19→4.20 effort, CNV is uninstalled (issue 12) and this step is a no-op
 - [ ] Single-replica / no-PDB app inventory — flag and notify owners (this lab cluster currently has no user application workloads beyond `nfs-provisioner`; re-check if that changes)
 - [ ] Release notes / API deprecation notice for the specific target version reviewed — look for any resource your workloads actually use in the "removed APIs" list for that release
@@ -64,17 +87,68 @@ Run [`scripts/pre-upgrade-check.sh`](../issues/13-420-upgrade-readiness-ram-reme
 
 **No full cluster outage in a normal y-stream upgrade**, same guarantee as a
 z-stream, but every phase runs longer and every node reboots (not
-conditional on RHCOS bump, unlike a z-stream):
+conditional on RHCOS bump, unlike a z-stream).
 
-| Phase | Typical duration | User-visible impact |
-|---|---|---|
-| Control plane rollout (3 masters, sequential) | ~30–60 min | Each master briefly unavailable during its own restart; API stays reachable throughout via the other two — never take masters out of order or in parallel |
-| Worker rollout (2 workers, `maxUnavailable: 1` default) | ~15–30 min per worker (reboot is mandatory for a y-stream) | Workloads rescheduled/restarted on the draining worker; zero downtime for 2+-replica apps with a satisfiable PDB, real (if brief) downtime for single-replica/no-PDB apps |
-| **Total wall clock (this cluster's own z-stream history, scaled up)** | Issue 02 (4.15→4.16, prior y-stream on this cluster): **~4h 24m**, driven by 3 separate manual interventions (2 PDB blocks + 1 registry rate-limit), not raw CVO time | Budget similarly until this cluster demonstrates a clean, no-intervention y-stream run |
+**Corrected by issue 14 (the first actual completed run of this checklist):
+there are two genuinely distinct phases, and — contrary to what this
+section originally assumed — the master and worker node reboots are
+*not* sequenced against each other:**
 
-**Recommended maintenance window: 3–5 hours** — a y-stream on this cluster
-has never completed in under 4 hours once, and the known image-pull-stall
-pattern (issues 08, 09) can add 10–40 min unpredictably.
+| Phase | What it actually is | Typical duration (observed) | User-visible impact |
+|---|---|---|---|
+| 1. Control-plane component rollout | **No node reboots at all.** `etcd`, `kube-apiserver`, `kube-scheduler`, `kube-controller-manager` each roll via their own revision-counter + InstallerController, one master at a time *within each component*, writing the new static-pod manifest straight to that node's local disk. Deployment/DaemonSet-based operators (`openshift-apiserver`, `oauth-apiserver`, `dns`, `network`/OVN, `monitoring`, etc.) roll via ordinary Kubernetes rolling updates in parallel. | ~55 min (830/962 CVO tasks in issue 14's run) | None — API stays reachable throughout via the other masters; this whole phase completed before a single node rebooted |
+| 2. MCO node OS rollout (the actual reboots) | Each `MachineConfigPool` (`master`, `worker`) renders a new config and rolls its own nodes one at a time via cordon → drain → `rpm-ostree rebase` → reboot → uncordon. **The two pools run independently and concurrently** — issue 14 directly observed a master and a worker cordoned and rebasing at the exact same timestamp, not master-pool-fully-done-then-worker-pool-starts. Only *within* a single pool is it strictly one node at a time. | ~15–20 min per node reboot cycle; ~34 min wall-clock for all 5 nodes across both pools running in parallel | Each rebooting master briefly unavailable — API stays up via the other two, **but expect a ~1-minute `NodeControllerDegraded` cascade on `etcd`/`kube-apiserver`/`kube-controller-manager`/`kube-scheduler` every time a master comes back up** (its CNI hasn't initialized yet — self-heals, not a real fault, see §5). Workers: workloads rescheduled/restarted on the draining node; zero downtime for 2+-replica apps with a satisfiable PDB |
+| **Total wall clock — issue 14's clean run** | `oc adm upgrade --to=4.20.35` → `Completed` | **1h 29m**, zero manual interventions, zero PDB blocks, zero image-pull stalls | |
+| **Total wall clock — issue 02's prior y-stream** | 4.15→4.16 | ~4h 24m, driven by 3 manual interventions (2 PDB blocks + 1 registry rate-limit) | |
+
+**Recommended maintenance window: still 3–5 hours** despite issue 14's clean
+1h29m run — that run had zero PDB blocks and zero image-pull stalls, which
+issue 02 shows is not guaranteed. Budget for the worse case (issue 02),
+hope for the better one (issue 14); do not shrink the window just because
+the most recent run was fast.
+
+**New CVO behavior worth knowing before you watch the progress percentage:**
+if a critical operator (`etcd`, `kube-apiserver`) reports `Degraded=True`
+mid-upgrade — which happens routinely during the master-reboot CNI-init
+transient above — the CVO stops showing the raw task counter and switches
+to a bounded grace-period message instead, e.g.
+`waiting up to 40 minutes on etcd, kube-apiserver`, and the percentage can
+visibly *drop* when it does this. **This is expected, self-resolving
+behavior, not a stall or a regression** — confirmed in issue 14 by watching
+it happen three times (once per master reboot) and fully clear within
+about a minute each time.
+
+> **In plain English — what's actually happening during the upgrade, and
+> why you shouldn't panic:**
+>
+> - **First, nothing physically restarts.** The cluster quietly swaps out
+>   its own "brain" pieces (the components that keep track of everything —
+>   `etcd`, the API server, the scheduler) one machine at a time, while the
+>   other two keep the lights on. Nobody notices. This is most of the work
+>   and takes the longest, but it's also the safest part.
+> - **Then, and only then, do the actual machines restart** — like
+>   rebooting your laptop after installing a big update. Each of the 5
+>   machines (3 control-plane, 2 worker) gets emptied out, rebooted onto
+>   the new operating system, and put back into service, one at a time —
+>   **but the 3 control-plane machines and the 2 worker machines do this on
+>   their own separate schedules, not one group waiting for the other to
+>   finish.** Think of it like two work crews on the same building, each
+>   handling their own floor, not taking turns.
+> - **Every single time a control-plane machine comes back up from its
+>   reboot, the cluster will flash a "problem!" warning for about a minute**
+>   — this is completely normal and expected, not a real problem. It's the
+>   equivalent of your Wi-Fi router saying "no internet" for a few seconds
+>   right after it restarts, before it finishes reconnecting. Give it a
+>   minute before assuming something's actually wrong.
+> - **The progress bar/percentage can jump backwards** during one of those
+>   "problem!" warnings — that's the system saying "I'll wait up to 40
+>   minutes for this to sort itself out" rather than failing outright. It's
+>   a safety net, not a crash.
+>
+> **Bottom line for whoever's watching the upgrade:** if you see a scary
+> word like "Degraded" flash by right after a machine reboots, and it
+> clears up within a minute or two on its own, that's the upgrade working
+> correctly — not a fire to put out.
 
 ---
 
@@ -108,7 +182,9 @@ to a y-stream:
 | quay.io image pull rate limit hit mid-upgrade | Happened once (issue 02) | Anonymous/under-authenticated pulls during a burst of image pulls | Confirm the cluster pull-secret has authenticated quay.io credentials before starting (§2 script checks this) |
 | Post-upgrade channel drift via shared `kubeadmin` | Happened once, unattributable (issue 08) | `kube:admin` audit identity, `Default` audit profile | Use a named admin account (`babus`, issue 10) for every channel/upgrade command; periodically re-check `spec.channel` after the window |
 | Bastion `oc` client left behind | Happened once (issue 04), only caught after the fact | Server moves, client binary doesn't | Refresh the bastion `oc`/`kubectl` binary as an explicit post-upgrade step (§6), not an afterthought |
-| Master RAM pressure during overlapping-component rollout | Previously a hard blocker (issue 08's Insights finding); remediated 2026-08-26 (issue 13) | Masters raised from ~11GB to 14GB each | Re-confirm same-day headroom in §2 regardless — 14GB is still under Red Hat's stated 16GB control-plane minimum, an accepted risk, not a cleared one |
+| Master RAM pressure during overlapping-component rollout | Previously a hard blocker (issue 08's Insights finding); remediated 2026-08-26 (issue 13); **did not recur during issue 14's actual run** — masters peaked at 40–69% of the 14GB allocation, no pressure incident | Masters raised from ~11GB to 14GB each | Re-confirm same-day headroom in §2 regardless — 14GB is still under Red Hat's stated 16GB control-plane minimum, an accepted risk, not a cleared one |
+| Post-reboot `NodeControllerDegraded` cascade (`etcd`/`kube-apiserver`/`kube-controller-manager`/`kube-scheduler`) | **Happened on every single master reboot in issue 14 (3 of 3)** — treat as guaranteed, not occasional | Rebooted master reports `KubeletNotReady: no CNI configuration file in /etc/kubernetes/cni/net.d/` for ~1 minute until `ovnkube-node` finishes initializing on that node; cascades into the four operators above going `Degraded=True` (`etcd` sometimes dips to "2 of 3 members available", never below quorum) | **Do not intervene.** Confirmed self-healing within ~1 minute each time in issue 14 — re-check `oc get co` and the specific node's `Ready` condition before considering it a real problem. If it hasn't cleared after several minutes, that would be the actual anomaly worth escalating. |
+| `oc adm upgrade`'s progress percentage appearing to drop mid-upgrade | Happened 3 times in issue 14, once per master reboot | CVO switches from raw task-counting to a bounded grace-period message (`waiting up to 40 minutes on <operator>`) whenever a critical operator is `Degraded=True` | Expected — see §3. Not a regression, don't restart or intervene based on the percentage alone. |
 
 ---
 
