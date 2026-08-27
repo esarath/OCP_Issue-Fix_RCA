@@ -11,6 +11,29 @@
 
 ---
 
+## Background — y-stream vs. z-stream, and what `candidate`/`fast`/`stable` channels actually mean
+
+An OCP version is `X.Y.Z` (e.g. `4.20.35`): **X** = major, **Y** = minor, **Z** = patch. The two upgrade types this repo deals with are named after which number moves:
+
+| | **Z-stream** (patch, e.g. issue 08's `4.19.41→4.19.42`) | **Y-stream** (minor, **this issue**, `4.19.43→4.20.35`) |
+|---|---|---|
+| Kubernetes version | Unchanged | **Bumped** — this run: kubelet v1.32.13 → **v1.33.13** |
+| API deprecations/removals | None — no Kubernetes API version change | **Can remove/change APIs** deprecated in the prior minor — workloads or operators using a removed API can break |
+| Node reboots | Usually none, or limited to nodes with an actual RHCOS/kernel change | **Every node reboots** — the CVO/MCO task graph is much larger (962 tasks this run vs. a handful for a z-stream) |
+| OLM operator compatibility | Rarely a concern | **Must be re-verified per target minor** — this is why this cluster's `lightspeed-operator` compatibility was checked (and ultimately removed) before this window, see project history |
+| Rollback | `--to-image` back to the prior z-stream is sometimes viable if caught early | **No supported rollback once underway** — a one-way door, which is exactly why issue 13's readiness gate (RAM, disk, fresh backup) existed before this run |
+| Typical duration | Minutes to ~30 min | Much longer — **this run took 1h29m** end to end |
+
+**Channels (`candidate-X.Y`, `fast-X.Y`, `stable-X.Y`) are not different builds — they're different gates on the *same* release images**, controlling which upgrade edges Red Hat's Cincinnati graph exposes to a given cluster for a given minor:
+
+- **`candidate-X.Y`** — newest builds, exposed almost immediately after Red Hat builds them. No soak time, no fleet-health signal yet. Not recommended for production.
+- **`fast-X.Y`** — the same builds, promoted out of `candidate` once they clear Red Hat's internal CI/QE gates. Vetted, but without real-world fleet telemetry behind them yet.
+- **`stable-X.Y`** — the same builds again, promoted out of `fast` only once enough real clusters have run them (via `candidate`/`fast`) without reporting problems back through telemetry. This is the recommended channel for production, and what this cluster normally targets.
+
+**Why this run actually used `fast-4.20` instead of `stable-4.20`:** each release image carries its own metadata listing which channels it's a valid *entry point* for. Querying Red Hat's Cincinnati graph directly during this cluster's readiness work found that `4.19.43`'s own release metadata listed `candidate-4.20`/`fast-4.20` as valid entry channels but **not** `stable-4.20` — Red Hat simply hadn't tagged this specific z-stream into the stable-4.20 entry-edge yet (normal promotion lag, not a bug). A valid `4.19.43 → 4.20.35` edge already existed on `fast-4.20`, so that channel was used for this run instead of waiting. Switching channels itself never triggers an upgrade — it only changes what `oc adm upgrade` reports as available/recommended.
+
+---
+
 ## Pre-upgrade state (confirmed 2026-08-27, ~14:15 UTC)
 
 - ClusterVersion 4.19.43, `Available=True`, `Progressing=False`
