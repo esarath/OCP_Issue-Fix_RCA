@@ -32,6 +32,71 @@ per-node depth; several corrections below come directly from it).
 
 ---
 
+## Blueprint — the complete upgrade flow, end to end (HLD)
+
+This is the whole procedure below as one picture — every gate, both real
+rollout phases, and the one thing everyone should know before watching it
+run: the master pool and the worker pool are **two independent tracks**,
+not one after the other.
+
+```mermaid
+flowchart TD
+    A["Pre-flight checklist (§2)<br/>RAM/disk headroom · fresh backup · 0 pending CSRs<br/>0 blocking PDBs · OLM compatibility · named admin"] --> B{"Go / No-Go<br/>final call — no rollback exists<br/>once this starts"}
+    B -->|Go| C["Confirm target on channel<br/>(candidate / fast / stable — same bits,<br/>different fleet-trust gate)"]
+    C --> D["oc adm upgrade --to=X.Y.Z"]
+    D --> E["CVO redeploys onto the new binary first<br/>(the upgrader upgrades itself, step zero)"]
+    E --> F["CVO walks its manifest graph<br/>(~960 tasks on this cluster)"]
+
+    subgraph P1["Phase 1 — control-plane component rollout — NO reboots yet"]
+        F --> G["config-operator updates first<br/>(base CRDs/config others depend on)"]
+        G --> H["etcd<br/>revision-counter + InstallerController,<br/>one master at a time, writes straight to local disk"]
+        G --> I["kube-apiserver<br/>same mechanism, independent of etcd's own rollout"]
+        H --> J["kube-scheduler / kube-controller-manager<br/>same mechanism again"]
+        I --> J
+        J --> K["Remaining Deployment/DaemonSet operators<br/>(openshift-apiserver, oauth-apiserver, dns,<br/>network/OVN + image prepuller, monitoring, olm...)<br/>ordinary rolling updates, mostly in parallel"]
+    end
+
+    K --> L{"machine-config operator<br/>the last CVO gate —<br/>can't finish before nodes actually reboot"}
+
+    L --> MP1
+    L --> WP1
+
+    subgraph P2["Phase 2 — MCO node OS rollout (the real reboots) — BOTH POOLS RUN AT THE SAME TIME"]
+        subgraph MP["Master pool — one node at a time WITHIN this pool"]
+            MP1["cordon"] --> MP2["drain<br/>(only static pods + DaemonSets remain)"] --> MP3["rpm-ostree rebase<br/>(pull new RHCOS layers)"] --> MP4["reboot"] --> MP5{"~1 min: NodeControllerDegraded<br/>CNI not initialized yet<br/>(etcd/apiserver/scheduler/ctrl-mgr)"}
+            MP5 -->|self-heals, not a fault| MP6["uncordon"] --> MP7["next master in this pool..."]
+        end
+        subgraph WP["Worker pool — one node at a time WITHIN this pool"]
+            WP1["cordon"] --> WP2["drain<br/>(first real workload disruption<br/>of the whole upgrade)"] --> WP3["rpm-ostree rebase"] --> WP4["reboot"] --> WP5["uncordon"] --> WP6["next worker in this pool..."]
+        end
+    end
+
+    MP7 --> N{"Both MachineConfigPools<br/>UPDATED = True?"}
+    WP6 --> N
+    N -->|yes| O["machine-config CO reports target version<br/>ClusterVersion: Progressing=False"]
+    O --> P["Post-upgrade validation (§6)<br/>kubelet + OS per node · etcd 3/3 · 0 pending CSRs<br/>34/34 operators clean · both MCPs matched"]
+    P --> Q["Document the run as a new numbered issue"]
+
+    classDef gate fill:#fff3cd,stroke:#997404,color:#664d03;
+    classDef transient fill:#f8d7da,stroke:#b02a37,color:#58151c;
+    classDef done fill:#d1e7dd,stroke:#146c43,color:#0a3622;
+    class B,L,N gate;
+    class MP5 transient;
+    class Q done;
+```
+
+**Reading this diagram:** everything in **Phase 1** happens while all 5
+nodes stay up — it's the control plane quietly swapping its own internal
+pieces one master at a time. **Phase 2** is where machines actually reboot,
+and — the single most important correction this checklist got from issue
+14 — the master-pool branch and the worker-pool branch on the left and
+right run **concurrently, on their own independent schedules**, not
+master-pool-then-worker-pool. The pink "~1 min" box is expected to light up
+briefly on every master reboot and clear on its own — see §3 and §5 before
+treating it as an incident.
+
+---
+
 ## 1. What's different about a y-stream vs. a z-stream
 
 | Component | Z-stream | Y-stream (this checklist) |
