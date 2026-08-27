@@ -1,6 +1,6 @@
 # OCP Issue Fix & RCA Repository
 
-**Cluster**: lab.ocp.local | OCP 4.19.42 | Proxmox (3 masters + 2 workers)
+**Cluster**: lab.ocp.local | OCP 4.20.35 | Proxmox (3 masters + 2 workers)
 
 This repository is a living record of issues encountered on the OCP lab cluster.
 Each issue has its own folder containing the RCA, fix steps, and any scripts used.
@@ -31,7 +31,8 @@ throughout every `issues/` and `checklists/` document.
 | [10](issues/10-onboard-babus-cluster-admin/) | Onboard `babus` as Named Cluster-Admin (Patching & Upgrade Duties) | 2026-08-20 | N/A (Administration) | Completed |
 | [11](issues/11-4.19.43-patch-readiness-review/) | Cluster Patch Readiness Review: 4.19.42 → 4.19.43 Security Z-Stream | 2026-08-20 | N/A (Change Readiness Review) | Review complete — Blocked on target availability |
 | [12](issues/12-uninstall-idle-cnv-reclaim-resources/) | Uninstall Idle OpenShift Virtualization (CNV) to Reclaim Resources | 2026-08-20 | N/A (Resource Reclamation) | Completed |
-| [13](issues/13-420-upgrade-readiness-ram-remediation-and-prechecks/) | 4.20 Upgrade Readiness: Master RAM Remediation & Pre-Flight Validation | 2026-08-26 / 2026-08-27 | N/A (Change Readiness Review) | Cluster upgrade-ready — RAM blocker remediated, pre-checks pass, upgrade execution itself not yet scheduled |
+| [13](issues/13-420-upgrade-readiness-ram-remediation-and-prechecks/) | 4.20 Upgrade Readiness: Master RAM Remediation & Pre-Flight Validation | 2026-08-26 / 2026-08-27 | N/A (Change Readiness Review) | Superseded by issue 14 — readiness work led directly into the executed upgrade |
+| [14](issues/14-419-to-420-upgrade-execution/) | 4.19.43 → 4.20.35 Minor Version Upgrade: Execution & Internals Deep-Dive | 2026-08-27 | N/A (Change Execution) | Completed — 1h29m, all 34 operators clean, etcd 3/3, 0 pending CSRs |
 
 ---
 
@@ -64,7 +65,7 @@ OCP_Issue-Fix_RCA/
 
 | Resource | Value |
 |---|---|
-| OCP Version | 4.19.42 |
+| OCP Version | 4.20.35 |
 | Console | `https://console-openshift-console.apps.lab.ocp.local` |
 | API | `https://api.lab.ocp.local:6443` |
 | HAProxy (Load Balancer) | `svc-infra.ocp.local` — 192.168.29.10 |
