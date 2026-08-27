@@ -1,0 +1,59 @@
+
+>>> 1. CLUSTER VERSION & CHANNEL 
+  Current version: 4.19.42   Current channel: stable-4.19
+[PASS] Cluster not currently upgrading
+[WARN] Current channel (stable-4.19) != target channel (stable-4.20) — switch deliberately, not via console click (see issue 08 channel-drift incident)
+
+>>> 2. WHO'S RUNNING THIS (attribution) 
+  Identity: system:admin
+[PASS] Running as named identity: system:admin
+
+>>> 3. NODE HEALTH 
+[PASS] All 5 nodes are Ready
+
+>>> 4. CLUSTER OPERATORS 
+[PASS] All 34 cluster operators healthy
+
+>>> 5. MACHINECONFIGPOOLS 
+[PASS] All MCPs are updated and not degraded
+
+>>> 6. PENDING CSRs 
+[PASS] No pending CSRs
+
+>>> 7. NODE MEMORY HEADROOM (RAM was the 4.20 blocker — issues 08/11/12/13) 
+  NAME                     CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%   
+  master-1.lab.ocp.local   348m         7%     9578Mi          74%       
+  master-2.lab.ocp.local   318m         7%     10994Mi         85%       
+  master-3.lab.ocp.local   227m         5%     6932Mi          53%       
+  worker-1.lab.ocp.local   256m         10%    4787Mi          59%       
+  worker-2.lab.ocp.local   217m         8%     4574Mi          56%       
+[PASS] No node above 85% memory
+
+>>> 8. DISK SPACE (/var — minimum: ≥15% free) 
+[PASS] master-1.lab.ocp.local: /var is 38% used
+[PASS] master-2.lab.ocp.local: /var is 36% used
+[PASS] master-3.lab.ocp.local: /var is 32% used
+[PASS] worker-1.lab.ocp.local: /var is 17% used
+[PASS] worker-2.lab.ocp.local: /var is 18% used
+
+>>> 9. PODDISRUPTIONBUDGETS — PDBs THAT WILL BLOCK NODE DRAIN 
+[PASS] No PDBs with allowedDisruptions=0 found
+
+>>> 10. PULL SECRET (quay.io authentication — issue 02 hit a rate limit without this) 
+[PASS] quay.io pull secret authenticated (user: openshift-release-dev+ocm_access_525c5cdc7266489992ca4a942665db3b)
+
+>>> 11. ETCD HEALTH 
+[PASS] All 3 etcd pods fully ready
+
+>>> 12. INSTALLED OLM OPERATORS (confirm vendor compat with target y-stream manually) 
+  openshift-lightspeed lightspeed-operator.v1.1.3 Succeeded
+  openshift-operator-lifecycle-manager packageserver Succeeded
+
+>>> 13. UPDATE PATH 
+[WARN] Target version 4.20.x not found in recommended updates on current channel (stable-4.19)
+  Switch channel first: oc adm upgrade channel stable-4.20
+
+================================================
+  RESULTS: PASS=15  WARN=2  FAIL=0
+================================================
+  WARNING: Review WARN items before proceeding.

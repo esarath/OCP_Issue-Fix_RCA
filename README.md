@@ -31,6 +31,7 @@ throughout every `issues/` and `checklists/` document.
 | [10](issues/10-onboard-babus-cluster-admin/) | Onboard `babus` as Named Cluster-Admin (Patching & Upgrade Duties) | 2026-08-20 | N/A (Administration) | Completed |
 | [11](issues/11-4.19.43-patch-readiness-review/) | Cluster Patch Readiness Review: 4.19.42 → 4.19.43 Security Z-Stream | 2026-08-20 | N/A (Change Readiness Review) | Review complete — Blocked on target availability |
 | [12](issues/12-uninstall-idle-cnv-reclaim-resources/) | Uninstall Idle OpenShift Virtualization (CNV) to Reclaim Resources | 2026-08-20 | N/A (Resource Reclamation) | Completed |
+| [13](issues/13-420-upgrade-readiness-ram-remediation-and-prechecks/) | 4.20 Upgrade Readiness: Master RAM Remediation & Pre-Flight Validation | 2026-08-26 / 2026-08-27 | N/A (Change Readiness Review) | Cluster upgrade-ready — RAM blocker remediated, pre-checks pass, upgrade execution itself not yet scheduled |
 
 ---
 
@@ -50,7 +51,8 @@ OCP_Issue-Fix_RCA/
 ├── checklists/                          # Operational checklists
 │   ├── cluster-startup.md              # Run on every cluster restart
 │   ├── admin-user-onboarding.md        # Add a traceable named cluster-admin user
-│   └── z-stream-patch-procedure.md     # Z-stream patch upgrade: pre/post checks, downtime, backup/restore plan
+│   ├── z-stream-patch-procedure.md     # Z-stream patch upgrade: pre/post checks, downtime, backup/restore plan
+│   └── minor-version-upgrade-procedure.md  # Y-stream (minor) upgrade: pre/post checks, downtime, backup/restore plan
 │
 └── scripts/                             # Shared/reusable scripts
     └── approve-csrs.sh                 # (symlink to latest version)
