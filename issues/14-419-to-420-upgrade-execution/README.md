@@ -8,6 +8,7 @@
 | **Closes out** | [issue 13](../13-420-upgrade-readiness-ram-remediation-and-prechecks/README.md) — all readiness prerequisites (RAM, disk, backup, health) confirmed done there |
 | **Procedure followed** | [checklists/minor-version-upgrade-procedure.md](../../checklists/minor-version-upgrade-procedure.md) |
 | **Purpose of this doc** | Unlike prior issues, this one exists to capture *what actually happens inside the cluster* during a y-stream upgrade — CVO's task-graph mechanics, operator update ordering/dependencies, static-pod revision rollouts, MCO node draining/rebooting, and any anomalies found along the way — as a reference for understanding OCP's internal upgrade machinery, not just a status log. |
+| **Interactive companion** | [Cluster Signal Map](https://claude.ai/code/artifact/c22152ed-607c-4a70-8120-318f309c8f02) — a step-through diagram of which components talk to which (control plane ↔ node, master ↔ worker) at every stage of this exact run, built from the findings below |
 
 ---
 

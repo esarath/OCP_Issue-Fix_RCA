@@ -39,6 +39,11 @@ rollout phases, and the one thing everyone should know before watching it
 run: the master pool and the worker pool are **two independent tracks**,
 not one after the other.
 
+Prefer clicking through it interactively? [**Cluster Signal Map**](https://claude.ai/code/artifact/c22152ed-607c-4a70-8120-318f309c8f02) —
+a step-through simulator built from issue 14's actual run, showing exactly
+which component talks to which at every stage (private link — ask for
+access if it doesn't load for you).
+
 ```mermaid
 flowchart TD
     A["Pre-flight checklist (§2)<br/>RAM/disk headroom · fresh backup · 0 pending CSRs<br/>0 blocking PDBs · OLM compatibility · named admin"] --> B{"Go / No-Go<br/>final call — no rollback exists<br/>once this starts"}
