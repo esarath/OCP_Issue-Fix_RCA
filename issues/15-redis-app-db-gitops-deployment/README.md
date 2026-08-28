@@ -3,8 +3,8 @@
 | Field | Detail |
 |---|---|
 | **Date** | 2026-08-28 |
-| **Type** | Planned Deployment (Low-Level Design — reviewed, in manual hands-on execution) |
-| **Status** | LLD at v4. **Execution in progress, run manually by the owner** (not automated by this repo's tooling) — Phase C (namespace + governance) complete and `Synced`/`Healthy`; Phase D onward not yet started. |
+| **Type** | Deployment (Low-Level Design — reviewed, executed by hand) |
+| **Status** | **Completed.** All phases (A–G) executed manually by the owner; full Section 9 validation checklist passed and independently re-verified — all 3 ArgoCD Applications `Synced`/`Healthy`, both tiers' pods `Running`/`Ready`, PVC `Bound`, PDBs correctly sized, governance objects present, AOF persistence confirmed active in `redis-db` logs. |
 | **Scope** | Deploy a Redis cache tier (`redis-app`) + a persistent Redis datastore tier (`redis-db`) into a new `redis-platform` namespace on `lab.ocp.local`, fully managed via OpenShift GitOps (ArgoCD) |
 | **Target Namespace** | `redis-platform` (new) |
 | **Full LLD** | [Redis-OCP-GitOps-LLD.md](Redis-OCP-GitOps-LLD.md) |
@@ -51,6 +51,21 @@ Running Steps 8–9 by hand surfaced two issues the review passes couldn't have 
 Both fixes are reflected in the v4 LLD (new Step 9a, updated Section 5/6/7/10) and in `redis-gitops` itself (commits `b238ea6` and `8dadf5e`).
 
 (A third issue hit along the way — the ArgoCD web UI being unreachable from a separate Windows machine on the LAN — turned out to be that machine's DNS configuration, not a defect in this deployment or repo, so it's not tracked here.)
+
+## Final validation (2026-08-28) — Section 9 checklist, independently re-verified
+
+All phases executed; Steps 18/19 (Redis connectivity + persistence) and the full Section 9 checklist passed. Re-checked directly, not just taken on report:
+
+| Check | Result |
+|---|---|
+| ArgoCD sync/health (3 Applications) | All `Synced`/`Healthy` |
+| Pod readiness | `redis-app` 2/2, `redis-db` 1/1, all `Running`/`Ready`, 0 restarts |
+| PVC bound | `data-redis-db-0` `Bound`, 10Gi, `nfs-storage` |
+| PodDisruptionBudgets | `redis-app` (2 replicas, 1 allowed disruption), `redis-db` (1 replica, 0 allowed disruption) — both correctly sized |
+| Governance objects | `ResourceQuota`, `LimitRange`, 2× `NetworkPolicy` all present in `redis-platform` |
+| Logs clean | No errors on either tier; `redis-db` logs confirm AOF genuinely active (`Creating AOF base file appendonly.aof.1.base.rdb`, `...incr.aof`) — not just configured, actually running |
+
+One near-miss worth recording: mid-validation, a `python3`-piped `oc get pod -o json` read produced an incorrect report (orphaned pod, mismatched label, no owner) that would have led to deleting a healthy, correctly-owned pod. A second, independent `-o yaml` read caught the discrepancy before anything was touched. Lesson: cross-check with a second method before recommending a delete on anything stateful, especially when the first read alone is surprising.
 
 ## Related
 
