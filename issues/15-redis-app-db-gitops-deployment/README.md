@@ -3,8 +3,8 @@
 | Field | Detail |
 |---|---|
 | **Date** | 2026-08-28 |
-| **Type** | Planned Deployment (Low-Level Design — reviewed, not yet executed) |
-| **Status** | LLD drafted, architecture-reviewed, and revised to v2. **Not yet implemented on the cluster** — no `redis-platform` namespace, Applications, or workloads exist yet. |
+| **Type** | Planned Deployment (Low-Level Design — reviewed, in manual hands-on execution) |
+| **Status** | LLD at v3. **Execution in progress, run manually by the owner** (not automated by this repo's tooling) — currently in Phase A pre-checks. No `redis-platform` namespace, Applications, or workloads exist yet. |
 | **Scope** | Deploy a Redis cache tier (`redis-app`) + a persistent Redis datastore tier (`redis-db`) into a new `redis-platform` namespace on `lab.ocp.local`, fully managed via OpenShift GitOps (ArgoCD) |
 | **Target Namespace** | `redis-platform` (new) |
 | **Full LLD** | [Redis-OCP-GitOps-LLD.md](Redis-OCP-GitOps-LLD.md) |
@@ -36,6 +36,10 @@ The first draft had one architectural flaw and one internal contradiction; both 
 | NFS-backed persistence risk (fsync/file-locking under AOF) not documented | Documented explicitly as an accepted, mitigated risk (`appendfsync everysec`, not `always`) |
 | Bitnami image registry reachability assumed, not verified | Added a pre-check step (test-pull `docker.io/bitnami/redis:7.2`) — Broadcom's 2025 changes to Bitnami's free-tier image distribution make this worth confirming before build, not after |
 | `storageClassName` left implicit on the PVC | Pinned explicitly to `nfs-storage` |
+
+## v3 update — the Step 4 pre-check caught a real failure
+
+Running Step 4 manually on the live cluster confirmed the predicted risk: `docker.io/bitnami/redis:7.2` fails with `manifest unknown`. Bitnami's free-tier `bitnami/redis` repo now publishes **only rolling `sha256-*` digest tags** — the fixed version tag never existed to pull. Repinned to `docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6` (the frozen legacy archive, last updated 2025-07-18) and verified it live: pod ran to completion, printed `Redis server v=7.2.5`. This is now the image reference used throughout the LLD's Phase F manifests — see the v3 revision-history entry and the new "Image source" row in Section 6 of the linked LLD.
 
 ## Related
 

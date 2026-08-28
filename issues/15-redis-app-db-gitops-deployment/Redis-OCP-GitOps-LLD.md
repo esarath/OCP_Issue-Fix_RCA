@@ -10,7 +10,7 @@
 | Deployment Method | OpenShift GitOps (ArgoCD) — Application-of-Apps pattern, raw Kustomize manifests |
 | Scope | Redis App-tier cache + Redis DB-tier persistent instance |
 | Owner | Platform/DevOps Engineering |
-| Revision | v2 |
+| Revision | v3 |
 
 **Revision History**
 
@@ -18,6 +18,7 @@
 |---|---|---|
 | v1 | 2026-08-27 | Initial draft |
 | v2 | 2026-08-28 | Architecture review: split namespace/governance objects into a dedicated `redis-platform-appl` Application to remove a cross-tier delete blast radius; resolved a Helm-vs-raw-manifest contradiction in favor of raw Kustomize manifests; added liveness/readiness probes and PodDisruptionBudgets; switched AOF enablement to Bitnami-documented env vars; pinned `storageClassName`; documented NFS persistence risk and Bitnami registry reachability risk; corrected stale cluster-version header |
+| v3 | 2026-08-28 | Step 4's pre-check caught the predicted Bitnami registry risk for real: `docker.io/bitnami/redis:7.2` no longer resolves — Bitnami's free-tier repo now only publishes rolling `sha256-*` digest tags, no fixed version tags. Repinned the image to `docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6` (verified pulling and running on this cluster) across Step 4 and both Phase F manifests |
 
 ---
 
@@ -46,7 +47,7 @@ Splitting the namespace into its own Application is a deliberate design choice, 
 | 2 | Node capacity | 2 workers only → HA (Sentinel/replica) is best-effort, not full anti-affinity-safe; documented limitation, mitigated with `PodDisruptionBudget`s (Section 6) |
 | 3 | Storage | Default `StorageClass` (`nfs-storage`, community `nfs-subdir-external-provisioner`) supports RWO — confirmed live on this cluster. **NFS-backed persistence carries a known fsync/file-locking risk** for AOF-heavy workloads; mitigated via `appendfsync everysec` (never `always`) — see Section 10 |
 | 4 | Git repo | Accessible Git remote (GitHub/GitLab) reachable from the ArgoCD instance |
-| 5 | Registry | Public registry access (`docker.io`, `quay.io`) or mirrored internal registry for air-gapped clusters. **Verify reachability before build** — Broadcom's 2025 changes to Bitnami's free-tier distribution moved or gated some `bitnami/*` image tags; confirm the exact `docker.io/bitnami/redis:<tag>` pull succeeds from this cluster before committing it to Git (new pre-check, Step 4) |
+| 5 | Registry | Public registry access (`docker.io`, `quay.io`) confirmed live on this cluster. **Confirmed impact of Bitnami's 2025 catalog changes:** `docker.io/bitnami/redis:7.2` fails with `manifest unknown` — the free-tier `bitnami/redis` repo now publishes only rolling `sha256-*` digest tags, no fixed version tags. Using `docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6` instead (verified pull + run, Step 4) — a frozen archive (last updated 2025-07-18, no further security patches), acceptable for this lab/POC scope but not a long-term production choice |
 | 6 | Secrets | No plaintext secrets committed to Git — created out-of-band via `oc create secret` (decision finalized, Section 6) |
 | 7 | Networking | Default OVN-Kubernetes CNI; NetworkPolicy support available |
 
@@ -138,6 +139,7 @@ labels:
 | Decision Point | Options Evaluated | Selected | Rationale |
 |---|---|---|---|
 | Deployment mechanism | Raw manifests / Bitnami Helm chart / Redis Operator (community) | **Raw Kustomize manifests, `bitnami/redis` container image (not the Bitnami Helm chart)** | The chart's opinionated multi-object footprint (ConfigMap templating, primary/replica split, optional metrics sidecar) isn't needed at this scale; raw manifests give full control and are what's actually authored in Phase F — decided explicitly rather than left inconsistent with Section 7 |
+| Image source | `docker.io/bitnami/redis:7.2` (rolling digest tags only, confirmed unreachable — Step 4) / `docker.io/bitnamilegacy/redis:<pinned tag>` / official `docker.io/redis:7.2` | **`docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6`** (verified pull + run) | Smallest change from the reviewed design — keeps all Bitnami-specific conventions (env vars, `/bitnami/redis/data` path, non-root default) intact. Trade-off: frozen archive, no future security patches — acceptable for this lab/POC; revisit before any production use |
 | Namespace/governance ownership | Bundled into `redis-app`'s tree / dedicated Application | **Dedicated `redis-platform-appl` Application, sync-wave 0** | Prevents an app-tier Application delete/repath from cascade-deleting the shared namespace and the other tier's data (Section 3) |
 | redis-app topology | Single pod / Deployment (2 replicas, no persistence) | **Deployment, 2 replicas, `emptyDir`** | Cache doesn't need durability; 2 replicas spread across 2 workers for basic resilience |
 | redis-db topology | Single instance / Sentinel (3 nodes) / Replica set | **StatefulSet, 1 primary + optional 1 replica, RWO PVC** | Only 2 workers available — full 3-node Sentinel quorum not feasible without over-subscribing nodes; documented as a scaling gap |
@@ -231,9 +233,11 @@ oc describe node <worker-node-1> | grep -A5 "Allocated resources"
 **WHERE TO EXECUTE:** `oc` CLI
 ```bash
 oc run bitnami-pull-test --rm -i --restart=Never \
-  --image=docker.io/bitnami/redis:7.2 -- redis-server --version
+  --image=docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6 -- redis-server --version
 ```
-**Expected output:** Pod runs to completion and prints the Redis version banner. If this fails with `ImagePullBackOff`/`ErrImagePull`, resolve it now — do not discover it mid-Phase-F. Options: mirror the image to an internal registry, pin a known-good tag/digest, or fall back to an alternative maintained image (e.g. `docker.io/bitnamilegacy/redis:7.2`), given Broadcom's 2025 changes to Bitnami's free image distribution.
+**Expected output:** Pod runs to completion and prints the Redis version banner (`Redis server v=7.2.5 ...`).
+
+**Already run on this cluster:** the original `docker.io/bitnami/redis:7.2` failed with `manifest unknown` — Bitnami's free-tier `bitnami/redis` repo now publishes only rolling `sha256-*` digest tags (Broadcom's 2025 catalog change), no fixed version tags at all. `docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6` was confirmed working instead (pod `Succeeded`, printed `Redis server v=7.2.5`) and is the tag used throughout Phase F below. If this tag itself ever stops resolving, check current tags at `hub.docker.com/r/bitnamilegacy/redis/tags` before falling back to mirroring or switching to the official `docker.io/redis` image (which uses different env vars/paths — see Section 6, "Image source" row).
 
 ---
 
@@ -475,7 +479,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: redis
-          image: docker.io/bitnami/redis:7.2
+          image: docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -543,7 +547,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: docker.io/bitnami/redis:7.2
+          image: docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -680,7 +684,8 @@ oc exec -n redis-platform redis-db-0 -- redis-cli -a <REDIS_DB_PASSWORD> --no-au
 | Pod stuck `CreateContainerConfigError` | SCC denies non-root UID mismatch | Confirm image runs as non-root; avoid requesting `anyuid` SCC unless required |
 | PVC stuck `Pending` | `storageClassName` mismatch, or StorageClass doesn't support RWO | `oc get storageclass`; confirm `storageClassName: nfs-storage` in `volumeClaimTemplates` matches the actual SC name |
 | Redis write stalls / high latency under load (DB tier) | NFS fsync/file-locking overhead under `appendfsync always` or heavy write bursts | Confirm `appendfsync everysec` is set (not `always`); monitor AOF rewrite duration; this is an accepted trade-off of the NFS-backed default StorageClass |
-| `ImagePullBackOff` on `bitnami/redis` | Tag moved/gated by Bitnami's 2025 catalog changes, or air-gapped cluster with no route to `docker.io` | Re-run Step 4's pull test; mirror the image internally or pin an alternative tag/registry; update `image:` field in overlay |
+`manifest unknown` pulling `bitnami/redis:<tag>` | Confirmed on this cluster (2026-08-28): Bitnami's free-tier repo now serves only rolling `sha256-*` digest tags, no fixed version tags | Use `docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6` (already the pinned tag in this doc/Phase F) — frozen archive, no future patches, acceptable for lab/POC scope |
+| `ImagePullBackOff`/`ErrImagePull` on `bitnamilegacy/redis` | Tag removed from the legacy archive, or air-gapped cluster with no route to `docker.io` | Re-run Step 4's pull test; check current tags at `hub.docker.com/r/bitnamilegacy/redis/tags`; mirror the image internally or pin a different tag; update `image:` field in overlay |
 | Deleting/repathing `redis-app-appl` also removes `redis-db`'s namespace | A `Namespace` manifest was added to an app-tier Application's tracked path, violating the Section 5 invariant | Keep `Namespace` and governance objects solely under `apps/redis-platform/base/`, owned only by `redis-platform-appl` — never add a `Namespace` manifest to `redis-app` or `redis-db` |
 | ArgoCD `OutOfSync` in a loop | Immutable field changed (e.g., `serviceName`, PVC size shrink) | Delete and recreate the resource via a Git-tracked change, not manual `oc edit` |
 | ArgoCD can't reach Git repo | Firewall/proxy blocking outbound HTTPS from `openshift-gitops-repo-server` | Configure repo-server proxy env vars or use internal Git mirror |
