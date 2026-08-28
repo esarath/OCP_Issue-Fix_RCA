@@ -10,7 +10,7 @@
 | Deployment Method | OpenShift GitOps (ArgoCD) — Application-of-Apps pattern, raw Kustomize manifests |
 | Scope | Redis App-tier cache + Redis DB-tier persistent instance |
 | Owner | Platform/DevOps Engineering |
-| Revision | v3 |
+| Revision | v4 |
 
 **Revision History**
 
@@ -19,6 +19,7 @@
 | v1 | 2026-08-27 | Initial draft |
 | v2 | 2026-08-28 | Architecture review: split namespace/governance objects into a dedicated `redis-platform-appl` Application to remove a cross-tier delete blast radius; resolved a Helm-vs-raw-manifest contradiction in favor of raw Kustomize manifests; added liveness/readiness probes and PodDisruptionBudgets; switched AOF enablement to Bitnami-documented env vars; pinned `storageClassName`; documented NFS persistence risk and Bitnami registry reachability risk; corrected stale cluster-version header |
 | v3 | 2026-08-28 | Step 4's pre-check caught the predicted Bitnami registry risk for real: `docker.io/bitnami/redis:7.2` no longer resolves — Bitnami's free-tier repo now only publishes rolling `sha256-*` digest tags, no fixed version tags. Repinned the image to `docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6` (verified pulling and running on this cluster) across Step 4 and both Phase F manifests |
+| v4 | 2026-08-28 | Two real failures hit executing Steps 8–9 (Phase C) on the live cluster, both fixed: (1) the doc's `<org>/gitops-repo.git` placeholder was applied literally, leaving `redis-platform-appl` stuck `Unknown`/`ComparisonError: repository not found` — a real repo (`esarath/redis-gitops`) was created and both `sourceRepos`/`repoURL` fixed; (2) `ResourceQuota`/`LimitRange` sync failed with `... is forbidden` — OpenShift GitOps' auto-granted namespace role deliberately excludes `create` on those two kinds even though it grants near-admin on everything else. Moved both out of the ArgoCD-tracked `base/` into a `manual/` folder, applied out-of-band (new Step 9a) |
 
 ---
 
@@ -127,10 +128,16 @@ labels:
   environment: dev        # or staging/prod per overlay
 ```
 
-**Governance objects** (applied via GitOps, tracked under `apps/redis-platform/base/`, sync-wave 0 — exist before either tier attempts to sync):
+**Governance objects**, split by how they're applied (see Step 9a for why):
+
+*ArgoCD-managed* (tracked under `apps/redis-platform/base/`, sync-wave 0):
+- `NetworkPolicy` — deny-all ingress by default, allow only from designated consumer namespaces (plus Prometheus scrape access if metrics are enabled later)
+
+*Applied out-of-band* (tracked under `apps/redis-platform/manual/` for reference, but **not** referenced by any `kustomization.yaml` — ArgoCD never touches these):
 - `ResourceQuota` — cap total CPU/memory/PVC count in namespace
 - `LimitRange` — default request/limit per container
-- `NetworkPolicy` — deny-all ingress by default, allow only from designated consumer namespaces (plus Prometheus scrape access if metrics are enabled later)
+
+OpenShift GitOps' auto-granted namespace role for the `argocd-application-controller` service account explicitly restricts `resourcequotas`/`limitranges` to `get/list/watch` — no `create` — even though it grants near-admin (`*`) on almost everything else in a namespace carrying the `argocd.argoproj.io/managed-by: openshift-gitops` label. This is a deliberate platform guardrail (a GitOps app can't grant itself its own quota), confirmed live on this cluster: `resourcequotas is forbidden: User "system:serviceaccount:openshift-gitops:openshift-gitops-argocd-application-controller" cannot create resource "resourcequotas"...`. Don't work around it with extra RBAC — apply these two out-of-band instead, the same pattern already used for Secrets (Phase D).
 
 ---
 
@@ -146,6 +153,7 @@ labels:
 | Availability under node loss | No PDB / `PodDisruptionBudget` | **`PodDisruptionBudget` (`minAvailable: 1`) on both tiers** | 2-worker cluster means a single node drain can otherwise evict all replicas of a tier at once, silently, with no ArgoCD-visible signal |
 | SCC | `anyuid` / `restricted-v2` (default) | **`restricted-v2`** (Bitnami images run as non-root by default ≥ chart v18) | Avoids granting `anyuid`, keeps PSA `restricted` compliance |
 | Secrets | Plaintext Secret in Git / Sealed Secrets / External Secrets Operator | **Manual `oc create secret`, out-of-band** | Simplest GitOps-safe option at this scale; no sealed-secrets controller bootstrap dependency to manage |
+| Governance objects (ResourceQuota, LimitRange) | Track in `apps/redis-platform/base/` like NetworkPolicy / grant the controller extra RBAC / apply out-of-band | **Apply out-of-band (Step 9a), same pattern as Secrets** | OpenShift GitOps' auto-granted namespace role deliberately excludes `create` on these two kinds (confirmed live: `resourcequotas is forbidden`/`limitranges is forbidden`) — granting extra RBAC would punch a hole in a guardrail the platform put there on purpose |
 | Persistence | `emptyDir` / PVC / hostPath | **PVC, dynamic provisioning, `storageClassName: nfs-storage` (pinned explicitly), RWO, 10Gi (db) / none (app)** | Matches durability requirement for DB tier only; pinning the SC name avoids silently following a future change to the cluster default |
 | AOF enablement | Raw `--appendonly yes` CLI arg / `REDIS_AOF_ENABLED` env var | **`REDIS_AOF_ENABLED: "yes"` + `REDIS_EXTRA_FLAGS: "--appendfsync everysec"`** | Both are documented Bitnami image env vars; avoids depending on untested entrypoint arg-passthrough behavior, and explicitly sets the fsync policy to mitigate the NFS latency risk in Section 2 |
 | Health checks | None / exec-based probes | **Exec `redis-cli ... --no-auth-warning ping` liveness + readiness probes** | Required by the Section 9 validation checklist; `--no-auth-warning` keeps the password warning out of probe logs |
@@ -163,12 +171,14 @@ gitops-repo/
 ├── apps/
 │   ├── redis-platform/                 # namespace + governance (sync-wave 0)
 │   │   ├── application.yaml
-│   │   └── base/
-│   │       ├── kustomization.yaml
-│   │       ├── namespace.yaml
+│   │   ├── base/                       # ArgoCD-managed
+│   │   │   ├── kustomization.yaml
+│   │   │   ├── namespace.yaml
+│   │   │   └── networkpolicy.yaml
+│   │   └── manual/                     # NOT ArgoCD-managed — apply via `oc apply` (Step 9a)
+│   │       ├── README.md
 │   │       ├── resourcequota.yaml
-│   │       ├── limitrange.yaml
-│   │       └── networkpolicy.yaml
+│   │       └── limitrange.yaml
 │   ├── redis-app/                      # cache tier (sync-wave 1)
 │   │   ├── application.yaml
 │   │   ├── base/
@@ -316,6 +326,8 @@ oc apply -f clusters/ocp-onprem/redis-project.yaml
 ```
 **Expected output:** `appproject.argoproj.io/redis-project created`; `oc get appproject -n openshift-gitops` lists it.
 
+**Don't leave `<org>/gitops-repo.git` as literal text.** Replace it with your actual repository URL before applying — this bit us on this cluster: `redis-platform-appl` (Step 9) got stuck `SYNC STATUS: Unknown` with `ComparisonError: failed to list refs: repository not found: Repository not found.` because the placeholder was applied verbatim. The URL used for this actual deployment is `https://github.com/esarath/redis-gitops.git` — substitute your own equivalent everywhere `<org>/gitops-repo.git` appears (this file, both `sourceRepos` and every Application's `source.repoURL`).
+
 ---
 
 **Step 9 — Create the `redis-platform` Application (namespace + governance objects)**
@@ -362,7 +374,23 @@ spec:
 ```bash
 oc apply -f apps/redis-platform/application.yaml
 ```
-**Expected output:** `application.argoproj.io/redis-platform-appl created`; after sync, `oc get ns redis-platform` shows `Active`, and `oc get resourcequota,limitrange,networkpolicy -n redis-platform` show the governance objects present.
+**Expected output:** `application.argoproj.io/redis-platform-appl created`; after sync, `oc get ns redis-platform` shows `Active`. At this point `oc get networkpolicy -n redis-platform` will show the two NetworkPolicy objects, but `oc get resourcequota,limitrange -n redis-platform` will show **nothing yet** — that's expected, see Step 9a.
+
+---
+
+**Step 9a — Apply `ResourceQuota` and `LimitRange` out-of-band**
+**WHERE TO EXECUTE:** `oc` CLI (bastion) — NOT tracked by ArgoCD
+
+If you skip this step, `redis-platform-appl`'s sync will show `OutOfSync` indefinitely with an operation error containing `resourcequotas is forbidden` / `limitranges is forbidden` — confirmed live on this cluster. This is OpenShift GitOps' auto-granted namespace role deliberately withholding `create` on these two kinds; it is not a misconfiguration to fix with extra RBAC (see Section 5).
+
+```bash
+oc apply -f apps/redis-platform/manual/resourcequota.yaml
+oc apply -f apps/redis-platform/manual/limitrange.yaml
+
+# force ArgoCD to re-compare immediately rather than waiting for its ~3min poll
+oc annotate application redis-platform-appl -n openshift-gitops argocd.argoproj.io/refresh=hard --overwrite
+```
+**Expected output:** `resourcequota/redis-platform-quota created`, `limitrange/redis-platform-limits created`; within a few seconds, `oc get application redis-platform-appl -n openshift-gitops` shows `SYNC STATUS: Synced`, `HEALTH STATUS: Healthy`.
 
 ---
 
@@ -667,6 +695,7 @@ oc exec -n redis-platform redis-db-0 -- redis-cli -a <REDIS_DB_PASSWORD> --no-au
 | Check | Command | Pass Criteria |
 |---|---|---|
 | ArgoCD sync/health (all 3 Applications) | `oc get application -n openshift-gitops` | `Synced` / `Healthy`; `redis-platform-appl` present and not owned by an app-tier path |
+| Governance objects present (namespace-wide) | `oc get resourcequota,limitrange,networkpolicy -n redis-platform` | All three present — `ResourceQuota`/`LimitRange` applied manually (Step 9a), `NetworkPolicy` ×2 via ArgoCD |
 | Pod readiness | `oc get pods -n redis-platform` | All `Running`, `READY 1/1` |
 | PVC bound | `oc get pvc -n redis-platform` | `Bound`, `STORAGECLASS: nfs-storage` |
 | PodDisruptionBudgets present | `oc get pdb -n redis-platform` | `redis-app` and `redis-db` both present, `minAvailable: 1` |
@@ -687,6 +716,8 @@ oc exec -n redis-platform redis-db-0 -- redis-cli -a <REDIS_DB_PASSWORD> --no-au
 `manifest unknown` pulling `bitnami/redis:<tag>` | Confirmed on this cluster (2026-08-28): Bitnami's free-tier repo now serves only rolling `sha256-*` digest tags, no fixed version tags | Use `docker.io/bitnamilegacy/redis:7.2.5-debian-12-r6` (already the pinned tag in this doc/Phase F) — frozen archive, no future patches, acceptable for lab/POC scope |
 | `ImagePullBackOff`/`ErrImagePull` on `bitnamilegacy/redis` | Tag removed from the legacy archive, or air-gapped cluster with no route to `docker.io` | Re-run Step 4's pull test; check current tags at `hub.docker.com/r/bitnamilegacy/redis/tags`; mirror the image internally or pin a different tag; update `image:` field in overlay |
 | Deleting/repathing `redis-app-appl` also removes `redis-db`'s namespace | A `Namespace` manifest was added to an app-tier Application's tracked path, violating the Section 5 invariant | Keep `Namespace` and governance objects solely under `apps/redis-platform/base/`, owned only by `redis-platform-appl` — never add a `Namespace` manifest to `redis-app` or `redis-db` |
+| `redis-platform-appl` stuck `SYNC STATUS: Unknown`, `ComparisonError: ... repository not found` | The `<org>/gitops-repo.git` placeholder in `sourceRepos`/`repoURL` was applied literally instead of being replaced with a real repo URL — confirmed on this cluster | Create a real Git repo, push the `apps/`/`clusters/` structure to it, and `oc patch`/`oc apply` the AppProject and every Application's `repoURL` to point at it (Step 8/9) |
+| `redis-platform-appl` `OutOfSync` forever, operation error contains `resourcequotas is forbidden` / `limitranges is forbidden` | OpenShift GitOps' auto-granted namespace role withholds `create` on these two kinds specifically, even with near-admin on everything else — confirmed on this cluster | Apply `ResourceQuota`/`LimitRange` out-of-band (Step 9a); don't grant the controller SA extra RBAC to work around it |
 | ArgoCD `OutOfSync` in a loop | Immutable field changed (e.g., `serviceName`, PVC size shrink) | Delete and recreate the resource via a Git-tracked change, not manual `oc edit` |
 | ArgoCD can't reach Git repo | Firewall/proxy blocking outbound HTTPS from `openshift-gitops-repo-server` | Configure repo-server proxy env vars or use internal Git mirror |
 | Redis `NOAUTH` errors in app logs | Secret not mounted or wrong key name | Verify `secretKeyRef.key` matches secret data key exactly |
