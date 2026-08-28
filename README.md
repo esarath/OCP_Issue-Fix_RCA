@@ -33,6 +33,7 @@ throughout every `issues/` and `checklists/` document.
 | [12](issues/12-uninstall-idle-cnv-reclaim-resources/) | Uninstall Idle OpenShift Virtualization (CNV) to Reclaim Resources | 2026-08-20 | N/A (Resource Reclamation) | Completed |
 | [13](issues/13-420-upgrade-readiness-ram-remediation-and-prechecks/) | 4.20 Upgrade Readiness: Master RAM Remediation & Pre-Flight Validation | 2026-08-26 / 2026-08-27 | N/A (Change Readiness Review) | Superseded by issue 14 — readiness work led directly into the executed upgrade |
 | [14](issues/14-419-to-420-upgrade-execution/) | 4.19.43 → 4.20.35 Minor Version Upgrade: Execution & Internals Deep-Dive | 2026-08-27 | N/A (Change Execution) | Completed — 1h29m, all 34 operators clean, etcd 3/3, 0 pending CSRs |
+| [15](issues/15-redis-app-db-gitops-deployment/) | Redis (App + DB Tier) Deployment via OpenShift GitOps — LLD | 2026-08-28 | N/A (Planned Deployment) | LLD drafted and reviewed (v2) — not yet implemented on cluster |
 
 ---
 
