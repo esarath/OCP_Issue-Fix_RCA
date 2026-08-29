@@ -4,9 +4,9 @@
 |---|---|
 | **Date** | 2026-08-29 |
 | **Type** | Validation + Enhancement (Change Execution) |
-| **Status** | **Completed.** Full monitoring/alerting stack validated healthy; `Critical`-severity Alertmanager route wired to a Slack Incoming Webhook and confirmed delivering (synthetic test alert received in Slack, `alertmanager_notifications_failed_total{integration="slack"}` = 0). |
+| **Status** | **Completed.** Full monitoring/alerting stack validated healthy; `Critical`-severity Alertmanager route wired to a Slack Incoming Webhook and confirmed delivering (synthetic test alert received in Slack, `alertmanager_notifications_failed_total{integration="slack"}` = 0). v2: Alertmanager storage moved from ephemeral to PVC-backed (`nfs-storage`, 2Gi ×2), rollout verified clean. |
 | **Scope** | `openshift-monitoring` namespace on `lab.ocp.local` — Prometheus, Alertmanager, Thanos Querier, PrometheusRules, ClusterOperators |
-| **Target Secret** | `alertmanager-main` (`openshift-monitoring`) |
+| **Target Secret / ConfigMap** | `alertmanager-main` Secret; `cluster-monitoring-config` ConfigMap (both `openshift-monitoring`) |
 
 ---
 
@@ -96,8 +96,34 @@ While collecting the webhook, several *wrong* Slack credentials (a workspace inv
 - [Issue 14](../14-419-to-420-upgrade-execution/) — cluster upgraded to 4.20.35, the version this validation was run against
 - [Issue 15](../15-redis-app-db-gitops-deployment/) — source of the custom `redis-platform` PrometheusRule and the `PodDisruptionBudgetAtLimit` alert seen firing during this review
 
+## v2 update (2026-08-29, same day) — Alertmanager PVC-backed storage added
+
+Closed the first open follow-up above. Added an `alertmanagerMain.volumeClaimTemplate` to the `cluster-monitoring-config` ConfigMap in `openshift-monitoring`:
+
+```yaml
+enableUserWorkload: true
+alertmanagerMain:
+  volumeClaimTemplate:
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: nfs-storage
+      resources:
+        requests:
+          storage: 2Gi
+```
+
+`2Gi` per replica — Alertmanager only persists silences/notification-log/dedup state, a tiny footprint next to Prometheus' metrics store. `nfs-storage`'s StorageClass has `allowVolumeExpansion: false`, so this was sized deliberately rather than left at a default that can't grow later; matches the same `nfs-storage`, explicit-`storageClassName` pattern used for Prometheus's PVCs and decided explicitly in [issue 15](../15-redis-app-db-gitops-deployment/)'s LLD.
+
+**What happened on apply:** `volumeClaimTemplates` is immutable on an existing StatefulSet, so `cluster-monitoring-operator` deleted and recreated `alertmanager-main` rather than patching it in place — both replicas rolled essentially together (not a staggered one-at-a-time rollout), each bound a fresh `alertmanager-main-db-alertmanager-main-{0,1}` PVC (`nfs-storage`, `2Gi`, `Bound`), and both came back `6/6 Running` with 0 restarts within ~8s of the StatefulSet update.
+
+**Validated after rollout:**
+- Cluster gossip mesh: `status: ready`, 2 peers — replicas re-formed correctly.
+- `slack_configs` from the earlier fix still present on both replicas (lives in a separate Secret, untouched by this change).
+- `/alertmanager` data dir confirmed genuinely NFS-backed (`mount` shows the real `nfs4` mount from `192.168.29.10`), not `tmpfs`/ephemeral.
+- Watchdog canary took ~60s to reappear in Alertmanager's active-alerts list post-restart (expected — Alertmanager started with empty state and had to wait for Prometheus's next notify cycle), then confirmed present. No `AlertmanagerFailedReload` or other `Alertmanager*` alert fired during the rollout.
+- **Expected data loss, assessed as harmless:** because both replicas restarted together with fresh PVCs (no surviving peer to gossip-sync from), the one pre-existing silence (a permanent KubeVirt `PodDisruptionBudgetAtLimit` silence, originally created by `hyperconverged-cluster-operator`) did not come back. Confirmed harmless, not a regression: HCO isn't even installed on this cluster anymore — see [issue 12](../12-uninstall-idle-cnv-reclaim-resources/) (CNV uninstalled 2026-08-20) — so the silence was already orphaned/inert (matched a PDB label pattern for a workload that no longer exists) before this change touched it.
+
 ## Open follow-ups (not done in this pass)
 
-- Alertmanager has no PVC — consider `alertmanagerMain.volumeClaimTemplate` in `cluster-monitoring-config` if silence/notification-log durability across simultaneous replica restarts becomes a real requirement.
 - `warning`/`info` severity alerts still have no external notification path (console/API only) — only `critical` was in scope for this pass.
 - No `resources.limits` on Prometheus/Alertmanager — fine for this lab, worth revisiting if this cluster is ever used as a prod-parity reference.
