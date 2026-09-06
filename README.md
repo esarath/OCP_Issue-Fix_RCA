@@ -35,6 +35,7 @@ throughout every `issues/` and `checklists/` document.
 | [14](issues/14-419-to-420-upgrade-execution/) | 4.19.43 → 4.20.35 Minor Version Upgrade: Execution & Internals Deep-Dive | 2026-08-27 | N/A (Change Execution) | Completed — 1h29m, all 34 operators clean, etcd 3/3, 0 pending CSRs |
 | [15](issues/15-redis-app-db-gitops-deployment/) | Redis (App + DB Tier) Deployment via OpenShift GitOps — LLD | 2026-08-28 | N/A (Planned Deployment) | LLD drafted and reviewed (v2) — not yet implemented on cluster |
 | [16](issues/16-monitoring-alerting-validation-slack-critical-receiver/) | Monitoring/Alerting Deep-Dive Validation + Slack Receiver for Critical Alerts | 2026-08-29 | N/A (Change Execution) | Completed — stack validated healthy, `Critical` route wired to Slack (delivery confirmed), Alertmanager now PVC-backed |
+| [17](issues/17-skopeo-local-registry-cluster-trust/) | Local Skopeo Registry on `svc-infra` + Cluster Trust/Pull Wiring | 2026-09-05 / 2026-09-06 | N/A (Change Execution) | Completed — registry live (TLS+auth, Quadlet-managed), cluster CA-trusts it, both MCPs rolled clean, real pod pull verified |
 
 ---
 
