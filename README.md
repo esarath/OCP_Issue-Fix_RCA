@@ -36,6 +36,7 @@ throughout every `issues/` and `checklists/` document.
 | [15](issues/15-redis-app-db-gitops-deployment/) | Redis (App + DB Tier) Deployment via OpenShift GitOps — LLD | 2026-08-28 | N/A (Planned Deployment) | LLD drafted and reviewed (v2) — not yet implemented on cluster |
 | [16](issues/16-monitoring-alerting-validation-slack-critical-receiver/) | Monitoring/Alerting Deep-Dive Validation + Slack Receiver for Critical Alerts | 2026-08-29 | N/A (Change Execution) | Completed — stack validated healthy, `Critical` route wired to Slack (delivery confirmed), Alertmanager now PVC-backed |
 | [17](issues/17-skopeo-local-registry-cluster-trust/) | Local Skopeo Registry on `svc-infra` + Cluster Trust/Pull Wiring | 2026-09-05 / 2026-09-06 | N/A (Change Execution) | Completed — registry live (TLS+auth, Quadlet-managed), cluster CA-trusts it, both MCPs rolled clean, real pod pull verified |
+| [18](issues/18-urlshortener-fullstack-deploy-and-connect-services/) | Full-Stack JavaScript URL Shortener: Build, Deploy & Connect All Services | 2026-09-09 / 2026-09-10 | Medium | Resolved — app verified end-to-end; one cosmetic `/about` status-widget item open |
 
 ---
 
