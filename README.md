@@ -37,6 +37,8 @@ throughout every `issues/` and `checklists/` document.
 | [16](issues/16-monitoring-alerting-validation-slack-critical-receiver/) | Monitoring/Alerting Deep-Dive Validation + Slack Receiver for Critical Alerts | 2026-08-29 | N/A (Change Execution) | Completed — stack validated healthy, `Critical` route wired to Slack (delivery confirmed), Alertmanager now PVC-backed |
 | [17](issues/17-skopeo-local-registry-cluster-trust/) | Local Skopeo Registry on `svc-infra` + Cluster Trust/Pull Wiring | 2026-09-05 / 2026-09-06 | N/A (Change Execution) | Completed — registry live (TLS+auth, Quadlet-managed), cluster CA-trusts it, both MCPs rolled clean, real pod pull verified |
 | [18](issues/18-urlshortener-fullstack-deploy-and-connect-services/) | Full-Stack JavaScript URL Shortener: Build, Deploy & Connect All Services | 2026-09-09 / 2026-09-10 | Medium | Resolved — app verified end-to-end; one cosmetic `/about` status-widget item open |
+| [19](issues/19-jenkins-cicd-multibranch-pipeline/) | Jenkins CI/CD on `lab.ocp.local`: BuildConfig Pipeline + Multibranch + Stuck Cron RCA | 2026-09-13 | Medium | Completed — pipeline + multibranch + parallel tests verified end-to-end; one real incident (stuck Jenkins cron thread) root-caused and fixed |
+| [20](issues/20-jenkins-to-github-actions-migration/) | Migrate `jenkins-sample-app` CI/CD from Jenkins to GitHub Actions | 2026-09-14 / 2026-09-15 | Medium | Completed — self-hosted runner live, pipeline verified end-to-end on the cluster; one blocking incident (bad YAML plain-scalar) root-caused and fixed |
 
 ---
 
