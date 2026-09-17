@@ -39,6 +39,7 @@ throughout every `issues/` and `checklists/` document.
 | [18](issues/18-urlshortener-fullstack-deploy-and-connect-services/) | Full-Stack JavaScript URL Shortener: Build, Deploy & Connect All Services | 2026-09-09 / 2026-09-10 | Medium | Resolved — app verified end-to-end; one cosmetic `/about` status-widget item open |
 | [19](issues/19-jenkins-cicd-multibranch-pipeline/) | Jenkins CI/CD on `lab.ocp.local`: BuildConfig Pipeline + Multibranch + Stuck Cron RCA | 2026-09-13 | Medium | Completed — pipeline + multibranch + parallel tests verified end-to-end; one real incident (stuck Jenkins cron thread) root-caused and fixed |
 | [20](issues/20-jenkins-to-github-actions-migration/) | Migrate `jenkins-sample-app` CI/CD from Jenkins to GitHub Actions | 2026-09-14 / 2026-09-15 | Medium | Completed — self-hosted runner live, pipeline verified end-to-end on the cluster; one blocking incident (bad YAML plain-scalar) root-caused and fixed |
+| [21](issues/21-security-patch-application-guide-4.20.35/) | Security Patch Application Guide for OpenShift 4.20.35 | 2026-09-17 | N/A (Procedure/Documentation) | Procedure documented and ready for execution — comprehensive security patch guide for 4.20.35 → 4.20.38 |
 
 ---
 
