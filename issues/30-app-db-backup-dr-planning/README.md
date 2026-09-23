@@ -35,6 +35,8 @@ Enterprise alternatives where they exist: **Commvault, Veeam Kasten, NetBackup**
 | Install OADP + first backup | Guide Parts 2–3 + `manifests/` |
 | Backup a database correctly | Guide Part 3.3 + `manifests/db-backup-cronjob.yaml` |
 | Design regional DR | Guide Part 5 — strategy decision matrix |
+| **Before deploying** | `checklists/pre-validation.md` — requirements, env, OADP, DB, DR-readiness gates |
+| **After deploying** | `checklists/post-validation.md` — backup execution, restore drill, alerting, sign-off |
 | Prove backups work | Guide Part 6.2 — restore drill procedure + `scripts/velero-backup-check.sh` |
 
 ## Files
@@ -48,6 +50,9 @@ Enterprise alternatives where they exist: **Commvault, Veeam Kasten, NetBackup**
 │   ├── dpa-velero.yaml                    # DataProtectionApplication (velero instance)
 │   ├── backup-schedules.yaml              # daily app / weekly full schedules
 │   └── db-backup-cronjob.yaml             # logical DB dump CronJob (Postgres example)
+├── checklists/
+│   ├── pre-validation.md                  # run BEFORE deploy — reqs/env/OADP/DB/DR gates
+│   └── post-validation.md                 # run AFTER deploy — backup/restore/alert/DR sign-off
 └── scripts/
     └── velero-backup-check.sh             # backup health + last-restore-test audit
 ```
