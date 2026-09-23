@@ -1,0 +1,54 @@
+# =============================================================================
+# Scheduled AD group sync — runs oc adm groups sync hourly.
+#
+# Prereqs in ns ldap-group-sync:
+#   oc create configmap ldap-sync-config --from-file=sync.yaml=ldap-sync-config.yaml -n ldap-group-sync
+#   oc create configmap ldap-ca --from-file=ca.crt=ad-ca.crt -n ldap-group-sync
+#   oc create secret generic ldap-bind-secret --from-literal=bindPassword='<pw>' -n ldap-group-sync
+#   oc apply -f sync-rbac.yaml
+# =============================================================================
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ldap-group-sync
+  namespace: ldap-group-sync
+spec:
+  schedule: "15 * * * *"                    # hourly at :15 — adjust as needed
+  concurrencyPolicy: Forbid                 # never run two syncs at once
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: ldap-group-syncer
+          restartPolicy: OnFailure
+          containers:
+            - name: sync
+              image: registry.redhat.io/openshift4/ose-cli:latest
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  echo "== AD group sync starting $(date -u) =="
+                  # --confirm required to actually write; drop it to dry-run
+                  oc adm groups sync \
+                    --sync-config=/etc/ldap-sync/sync.yaml \
+                    --confirm
+                  echo "== done =="
+              volumeMounts:
+                - { name: sync-config, mountPath: /etc/ldap-sync, readOnly: true }
+                - { name: ldap-ca,     mountPath: /etc/ldap-ca,   readOnly: true }
+                - { name: bind-secret, mountPath: /etc/ldap-secret, readOnly: true }
+          volumes:
+            - name: sync-config
+              configMap: { name: ldap-sync-config }
+            - name: ldap-ca
+              configMap: { name: ldap-ca }
+            - name: bind-secret
+              secret:
+                secretName: ldap-bind-secret
+                items:
+                  - { key: bindPassword, path: bindPassword }

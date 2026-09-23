@@ -1,0 +1,40 @@
+# =============================================================================
+# RBAC for the LDAP group-sync CronJob — least privilege:
+# manage OCP Group objects only, nothing else.
+# =============================================================================
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ldap-group-sync
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ldap-group-syncer
+  namespace: ldap-group-sync
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ldap-group-syncer
+rules:
+  - apiGroups: ["user.openshift.io", ""]
+    resources: ["groups"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: ["user.openshift.io", ""]
+    resources: ["users", "identities"]
+    verbs: ["get", "list"]                 # read-only: needed to resolve members
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ldap-group-syncer
+subjects:
+  - kind: ServiceAccount
+    name: ldap-group-syncer
+    namespace: ldap-group-sync
+roleRef:
+  kind: ClusterRole
+  name: ldap-group-syncer
+  apiGroup: rbac.authorization.k8s.io

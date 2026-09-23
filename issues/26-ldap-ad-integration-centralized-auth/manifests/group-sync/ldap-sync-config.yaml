@@ -1,0 +1,43 @@
+# =============================================================================
+# LDAP group sync config — Active Directory schema (augmentedActiveDirectory)
+#
+# augmentedActiveDirectory uses AD's 'memberOf' overlay + the
+# LDAP_MATCHING_RULE_IN_CHAIN OID so NESTED group membership works:
+# user -> member of team-group -> member of OCP-Developers  ==  synced.
+#
+# Mounted into the sync CronJob; consumed by:
+#   oc adm groups sync --sync-config=/etc/ldap-sync/sync.yaml --confirm
+#
+# For OpenLDAP (not AD), replace augmentedActiveDirectory: with rfc2307:
+# and use uid/memberUid-style attributes instead.
+# =============================================================================
+kind: LDAPSyncConfig
+apiVersion: redhatcop.redhat.io/v1alpha1
+bindDN: "CN=<svc-ocp-ldap>,CN=Users,DC=lab,DC=ocp,DC=local"
+bindPassword:
+  file: /etc/ldap-secret/bindPassword        # mounted from ldap-bind-secret
+ca: /etc/ldap-ca/ca.crt                       # mounted from ldap-ca ConfigMap
+insecure: false
+augmentedActiveDirectory:
+  groupsQuery:
+    baseDN: "CN=Users,DC=lab,DC=ocp,DC=local"
+    scope: sub
+    derefAliases: never
+    pageSize: 0                               # 0 = no paging; set 1000 for large dirs
+    filter: "(objectClass=group)"
+  groupUIDAttribute: dn
+  groupNameAttributes: [ cn ]                 # OCP group name = AD group CN
+  groupMembershipAttributes: [ "memberOf:1.2.840.113556.1.4.1941:" ]  # nested resolution
+  usersQuery:
+    baseDN: "CN=Users,DC=lab,DC=ocp,DC=local"
+    scope: sub
+    derefAliases: never
+    filter: "(objectClass=user)"
+  userNameAttributes: [ sAMAccountName ]      # must match oauth preferredUsername
+  # --- Scope the sync to OCP-relevant groups only (recommended) -------------
+  # whitelist:                                 # literal group DNs to sync
+  #   - "CN=OCP-Cluster-Admins,CN=Users,DC=lab,DC=ocp,DC=local"
+  #   - "CN=OCP-Developers,CN=Users,DC=lab,DC=ocp,DC=local"
+  # blacklist: []
+  # Or use a group filter instead of a whitelist:
+  # groupsQuery filter: "(&(objectClass=group)(cn=OCP-*))"

@@ -1,0 +1,57 @@
+# =============================================================================
+# AD group -> OCP role bindings
+#
+# These bind CLUSTER ROLES to the OCP Groups created by ldap-group-sync
+# (group names = AD group CNs). Apply AFTER the first successful sync, or
+# pre-create the groups manually:
+#   oc adm groups new OCP-Cluster-Admins
+#
+# Suggested AD groups (create in AD if they don't exist):
+#   OCP-Cluster-Admins  -> cluster-admin
+#   OCP-Operators       -> cluster-reader (see everything, change nothing)
+#   OCP-Developers      -> edit on their dev namespaces (per-project binding)
+# =============================================================================
+---
+# Full cluster admin for the platform team
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ad-ocp-cluster-admins
+subjects:
+  - kind: Group
+    name: OCP-Cluster-Admins
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Read-only cluster-wide visibility
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ad-ocp-operators-view
+subjects:
+  - kind: Group
+    name: OCP-Operators
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Developers — per-namespace edit. Repeat this block per namespace, or use a
+# ProjectRequestTemplate / project-onboarding automation for scale.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ad-ocp-developers-edit
+  namespace: <dev-namespace>               # e.g. jenkins-pipeline
+subjects:
+  - kind: Group
+    name: OCP-Developers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: edit
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,40 @@
+# =============================================================================
+# Cluster OAuth — LDAP (Active Directory) identity provider
+#
+# Prereqs:
+#   oc create secret generic ldap-secret --from-literal=bindPassword='<pw>' -n openshift-config
+#   oc create configmap ldap-ca --from-file=ca.crt=ad-ca.crt -n openshift-config
+#
+# Apply:
+#   oc apply -f oauth-ldap.yaml        # merges into oauth/cluster — do NOT delete existing IdPs
+#
+# NOTE: spec.identityProviders is a LIST — 'oc apply' merges; keep any existing
+# entries (e.g. HTPasswd break-glass) alongside this one until AD login verified.
+# =============================================================================
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+    - name: lab-ad                      # shows on the console login picker
+      mappingMethod: claim            # auto-provision User on first login
+      type: LDAP
+      ldap:
+        attributes:
+          id:                          # immutable identity — DN is safest for AD
+            - dn
+          email:
+            - mail
+          name:                        # display name
+            - displayName              # AD attr; use 'cn' for OpenLDAP
+          preferredUsername:           # becomes oc login username
+            - sAMAccountName           # AD logon name; use 'uid' for OpenLDAP
+        bindDN: "CN=<svc-ocp-ldap>,CN=Users,DC=lab,DC=ocp,DC=local"
+        bindPassword:
+          name: ldap-secret            # secret key must be 'bindPassword'
+        ca:
+          name: ldap-ca                # ConfigMap key must be 'ca.crt' — AD LDAPS cert chain
+        insecure: false                # NEVER true in anything but a throwaway test
+        # URL form: scheme://host:port/basedn?attribute?scope?filter
+        url: "ldaps://<ad-host>:636/CN=Users,DC=lab,DC=ocp,DC=local?sAMAccountName?sub?(objectClass=user)"
