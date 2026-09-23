@@ -35,6 +35,7 @@ Enterprise alternatives where they exist: **Commvault, Veeam Kasten, NetBackup**
 | Install OADP + first backup | Guide Parts 2–3 + `manifests/` |
 | Backup a database correctly | Guide Part 3.3 + `manifests/db-backup-cronjob.yaml` |
 | Design regional DR | Guide Part 5 — strategy decision matrix |
+| **Who does what during failover** | [DR-RACI.md](DR-RACI.md) — team RACI + execution sequence |
 | **Before deploying** | `checklists/pre-validation.md` — requirements, env, OADP, DB, DR-readiness gates |
 | **After deploying** | `checklists/post-validation.md` — backup execution, restore drill, alerting, sign-off |
 | Prove backups work | Guide Part 6.2 — restore drill procedure + `scripts/velero-backup-check.sh` |
@@ -45,6 +46,7 @@ Enterprise alternatives where they exist: **Commvault, Veeam Kasten, NetBackup**
 30-app-db-backup-dr-planning/
 ├── README.md                              # This file
 ├── Backup-DR-Planning-Guide.md            # Full guide
+├── DR-RACI.md                             # failover responsibilities + execution sequence
 ├── manifests/
 │   ├── oadp-install.yaml                  # OADP operator subscription + namespace
 │   ├── dpa-velero.yaml                    # DataProtectionApplication (velero instance)
