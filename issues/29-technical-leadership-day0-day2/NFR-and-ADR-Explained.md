@@ -146,3 +146,76 @@ The NFR is the *input*; the ADR records the *decision*; the manifest is the *out
 3. NFRs with no design answer = gaps → risk register
 4. At acceptance: every NFR has a test, every major choice has an ADR
 5. Day-2: incident RCAs that change architecture get *new* ADRs superseding the old
+
+---
+
+## Part 3 — The wider architecture & design vocabulary
+
+NFRs and ADRs don't live alone — this is the rest of the vocabulary, grouped by where it sits in the lifecycle.
+
+### Requirements & scoping (Day-0 inputs)
+
+| Term | What it is |
+|---|---|
+| **FR** | Functional requirement — *what* the system does (pairs with NFR) |
+| **Constraint** | Non-negotiable limit — budget, deadline, "must use existing F5", air-gap |
+| **Assumption** | Treated as true but unverified — sits on the RAID log until confirmed |
+| **MoSCoW** | Prioritization: Must / Should / Could / Won't — stops everything being "critical" |
+| **SLA / SLO / SLI** | Contractual target / internal objective / measured indicator — e.g. SLI = measured uptime, SLO = 99.9% goal, SLA = contract with penalties |
+| **RTO / RPO / MTTR** | How fast you must be back / tolerable data loss / average repair time — the DR trio |
+| **Acceptance criteria** | Objective pass/fail tests defining "done" |
+| **UAT** | User Acceptance Testing — the customer validates, not you |
+
+### Architecture artifacts (Day-0 outputs)
+
+| Term | What it is |
+|---|---|
+| **HLD** | High-Level Design — components, decisions, rationale; for approvers |
+| **LLD** | Low-Level Design — object/manifest-level detail engineers execute (Issue 15 is one) |
+| **C4 model** | Diagram standard: Context → Container → Component → Code zoom levels |
+| **Reference architecture** | Vendor/community blessed pattern you adapt rather than invent |
+| **DFD** | Data Flow Diagram — required input for threat modeling |
+| **Architecture principles** | Standing rules: "everything via GitOps", "no secrets in git" |
+
+### Decision & governance
+
+| Term | What it is |
+|---|---|
+| **ADR** | Decision record — Part 2 |
+| **RAID log** | Risks, Assumptions, Issues, Dependencies — the living engagement tracker (the risk register is just the R) |
+| **RACI** | Responsible / Accountable / Consulted / Informed — one A per row |
+| **Options paper / trade-off analysis** | Comparison doc feeding an ADR (like the MetalLB L2-vs-BGP example) |
+| **ARB** | Architecture Review Board — enterprise governance gate for designs |
+| **Technical debt register** | Deliberate shortcuts logged with a paydown plan |
+| **Fitness functions** | Automated tests that enforce architecture rules ("no service without readinessProbe") |
+
+### Delivery process terms
+
+| Term | What it is |
+|---|---|
+| **PoC / Pilot / Spike** | Prove feasibility / limited prod rollout / time-boxed research task |
+| **MVP** | Minimum Viable Product — smallest valuable first release |
+| **Gate / exit criteria** | Checklist that must pass before the next phase (see `checklists/`) |
+| **Cutover** | Planned switch old → new, with a defined rollback trigger |
+| **Change management / CAB** | Approval workflow for production changes |
+| **KT** | Knowledge transfer — the handoff activity |
+| **Shift-left** | Moving testing/security earlier in the lifecycle |
+
+### Quality vocabulary & distributed-systems terms
+
+The "-ilities": **availability, reliability, scalability, elasticity, observability, maintainability, portability, interoperability, testability, deployability, auditability**.
+
+Plus the terms that surface in every platform design conversation:
+
+| Term | One-liner |
+|---|---|
+| **CAP theorem** | Under network partition, choose Consistency or Availability — not both |
+| **Idempotency** | Repeating an operation gives the same result — required for safe retries |
+| **Statelessness** | No local state → any replica serves any request → horizontal scale |
+| **Immutability** | Replace, don't mutate — the image/container model |
+| **HA vs FT vs DR** | HA = survives component failure; FT = survives without interruption; DR = recovers from site loss. Three different budgets — don't conflate |
+| **Blast radius** | Worst-case scope of a failure/change — design to shrink it |
+
+### The short list to memorize for OCP engagements
+
+`SLA/SLO/SLI` · `RTO/RPO` · `RACI` · `RAID` · `HLD/LLD` · `gate/exit criteria` · `Day-0/1/2` — these come up in every customer conversation.
