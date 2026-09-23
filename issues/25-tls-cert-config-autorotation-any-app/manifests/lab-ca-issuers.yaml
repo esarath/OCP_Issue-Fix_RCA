@@ -1,0 +1,45 @@
+# =============================================================================
+# cert-manager — Lab internal CA bootstrap
+#
+# Chain: selfsigned-issuer -> lab-root-ca Certificate -> lab-root-ca-secret
+#        -> lab-ca-issuer (signs all app/route certs in the cluster)
+#
+# Apply AFTER cert-manager is installed:
+#   oc apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+#   oc apply -f lab-ca-issuers.yaml
+# =============================================================================
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+# The root CA itself — managed & auto-renewed by cert-manager (10y lifetime)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lab-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: Lab-Internal-CA
+  secretName: lab-root-ca-secret
+  duration: 87600h      # 10 years
+  renewBefore: 8760h    # rotate 1 year before expiry
+  privateKey:
+    algorithm: RSA
+    size: 4096
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+---
+# ClusterIssuer backed by the CA above — sign leaf certs from any namespace
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: lab-ca-issuer
+spec:
+  ca:
+    secretName: lab-root-ca-secret

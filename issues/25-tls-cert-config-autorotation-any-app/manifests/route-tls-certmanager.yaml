@@ -1,0 +1,32 @@
+# =============================================================================
+# Jenkins Route — edge TLS, cert issued & rotated by cert-manager/openshift-routes
+#
+# Prereqs: cert-manager + openshift-routes controller installed,
+#          lab-ca-issuer ClusterIssuer ready (see cert-manager/lab-ca-issuers.yaml)
+#
+# The controller writes certificate/key/caCertificate into spec.tls automatically
+# and re-issues before expiry — no manual cert handling.
+# =============================================================================
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: jenkins
+  namespace: jenkins
+  annotations:
+    cert-manager.io/issuer-name: lab-ca-issuer          # required
+    cert-manager.io/issuer-kind: ClusterIssuer        # optional (default: Issuer)
+    cert-manager.io/common-name: jenkins-jenkins.apps.lab.ocp.local
+    cert-manager.io/duration: 2160h                   # 90d (default 90d)
+    cert-manager.io/renew-before: 720h                # renew 30d early (default: 1/3 duration)
+    cert-manager.io/private-key-rotation-policy: Always
+spec:
+  host: jenkins-jenkins.apps.lab.ocp.local
+  path: /jenkins
+  to:
+    kind: Service
+    name: jenkins
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -1,0 +1,38 @@
+# =============================================================================
+# RBAC for the cert-rotator script (Option B) — least privilege:
+# a ServiceAccount that may only get/patch the jenkins route in ns jenkins.
+#
+# Get a long-lived token for the cron job:
+#   oc create token cert-rotator -n jenkins --duration=8760h
+# =============================================================================
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-rotator
+  namespace: jenkins
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-rotator
+  namespace: jenkins
+rules:
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    resourceNames: ["jenkins"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-rotator
+  namespace: jenkins
+subjects:
+  - kind: ServiceAccount
+    name: cert-rotator
+    namespace: jenkins
+roleRef:
+  kind: Role
+  name: cert-rotator
+  apiGroup: rbac.authorization.k8s.io

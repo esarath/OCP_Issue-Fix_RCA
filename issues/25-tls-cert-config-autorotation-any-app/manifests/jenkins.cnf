@@ -1,0 +1,23 @@
+# =============================================================================
+# OpenSSL CSR config — Jenkins route certificate
+# Used by: openssl req -new -key jenkins.key -out jenkins.csr -config jenkins.cnf
+#          openssl x509 -req ... -extensions v3_req -extfile jenkins.cnf
+# =============================================================================
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+CN = jenkins-jenkins.apps.lab.ocp.local
+O = Lab
+
+[v3_req]
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = jenkins-jenkins.apps.lab.ocp.local
+# Optional: cover every app route on the cluster with one wildcard cert instead
+# DNS.2 = *.apps.lab.ocp.local
