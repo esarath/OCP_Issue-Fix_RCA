@@ -1,0 +1,44 @@
+# =============================================================================
+# OADP (OpenShift API for Data Protection) install — Velero for OpenShift
+#
+# 1) Apply this file. 2) Wait for operator. 3) Create credentials secret.
+# 4) Apply dpa-velero.yaml.
+#
+# The object storage for backups must be S3-compatible:
+#   AWS S3, MinIO, Ceph RGW, NetApp StorageGRID, etc.
+# For the lab, MinIO on svc-infra or an in-cluster deployment works —
+# see the guide Part 2.1 for the MinIO quickstart.
+# =============================================================================
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-adp
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: oadp-og
+  namespace: openshift-adp
+spec:
+  targetNamespaces: [openshift-adp]
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: redhat-oadp-operator
+  namespace: openshift-adp
+spec:
+  channel: stable-1.5            # check `oc get packagemanifest redhat-oadp-operator` for current channel
+  installPlanApproval: Automatic
+  name: redhat-oadp-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+# Credentials for the S3 backup target — create via CLI so secrets stay out of git:
+#   oc create secret generic cloud-credentials -n openshift-adp \
+#     --from-file=cloud=<path-to-credentials-file>
+# credentials file format:
+#   [default]
+#   aws_access_key_id=<key>
+#   aws_secret_access_key=<secret>

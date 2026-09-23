@@ -1,0 +1,45 @@
+# =============================================================================
+# DataProtectionApplication — the Velero instance
+#
+# Prereq: S3-compatible bucket + cloud-credentials secret in openshift-adp.
+#
+# PV data handling — pick ONE strategy per the guide Part 2.3:
+#   - CSI snapshots (default here): needs a CSI driver w/ snapshot support.
+#     nfs-storage has NONE -> CSI snapshots will NOT work for NFS PVs.
+#   - nodeAgent (file-system backup, formerly restic): works on ANY volume
+#     incl. NFS — slower, streams pod files to S3. Enable below.
+# =============================================================================
+apiVersion: oadp.openshift.io/v1alpha1
+kind: DataProtectionApplication
+metadata:
+  name: velero-dpa
+  namespace: openshift-adp
+spec:
+  configuration:
+    velero:
+      defaultPlugins:
+        - openshift            # handles Routes, BuildConfigs, SCCs etc.
+        - aws                  # S3 provider (also used for S3-compatible endpoints)
+        # - csi                # enable ONLY if a CSI driver with snapshots exists
+      featureFlags: []
+      resourceTimeout: 10m
+    nodeAgent:                  # filesystem-level PV backup — works on NFS
+      enable: true
+      uploaderType: restic      # or kopia (default upstream)
+      timeout: 1h
+  backupLocations:
+    - velero:
+        provider: aws
+        default: true
+        objectStorage:
+          bucket: <velero-bucket>
+          prefix: ocp-lab
+        config:
+          region: <region>                       # e.g. us-east-1 / minio 'us-east-1'
+          s3Url: "<https://<s3-endpoint>>"       # MinIO/RGW URL; omit for AWS
+          s3ForcePathStyle: "true"             # required for MinIO & most on-prem S3
+          insecureSkipTLSVerify: "false"
+        credential:
+          name: cloud-credentials
+          key: cloud
+  # snapshotLocations: []                       # only with CSI/cloud snapshot provider

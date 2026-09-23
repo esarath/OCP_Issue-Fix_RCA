@@ -1,0 +1,59 @@
+# =============================================================================
+# Logical DB backup — pg_dump example (pattern applies to mysqldump, mongodump)
+#
+# WHY both this AND Velero? Filesystem snapshots can catch a DB mid-write —
+# a logical dump is always app-consistent and restores to ANY postgres version.
+# Belt and braces: dump daily -> Velero backs up the dump PVC too.
+#
+# Prereq: secret db-backup-creds with PGUSER/PGPASSWORD in <db-namespace>
+#   oc create secret generic db-backup-creds -n <db-namespace> \
+#     --from-literal=PGUSER=<user> --from-literal=PGPASSWORD='<pw>'
+# =============================================================================
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-dumps
+  namespace: <db-namespace>
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs-storage
+  resources: {requests: {storage: 10Gi}}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-logical-backup
+  namespace: <db-namespace>
+spec:
+  schedule: "0 1 * * *"                       # 01:00 — before Velero windows
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: dump
+              image: registry.redhat.io/rhel9/postgresql-16:latest
+              env:
+                - name: PGHOST
+                  value: <postgres-svc>
+                - {name: PGUSER,     valueFrom: {secretKeyRef: {name: db-backup-creds, key: PGUSER}}}
+                - {name: PGPASSWORD, valueFrom: {secretKeyRef: {name: db-backup-creds, key: PGPASSWORD}}}
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  OUT=/dumps/dump-$(date +%Y%m%d-%H%M%S).sql.gz
+                  pg_dumpall | gzip > "$OUT"
+                  echo "wrote $OUT ($(du -h "$OUT" | cut -f1))"
+                  # Retention: keep last 14 dumps
+                  ls -1t /dumps/dump-*.sql.gz | tail -n +15 | xargs -r rm -f
+              volumeMounts:
+                - {name: dumps, mountPath: /dumps}
+          volumes:
+            - name: dumps
+              persistentVolumeClaim: {claimName: db-dumps}

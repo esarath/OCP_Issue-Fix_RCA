@@ -1,0 +1,48 @@
+# =============================================================================
+# Velero backup schedules — off-peak windows (best practice: outside business
+# and backup-of-etcd windows; etcd backup runs 02:00, these run 03:30).
+# =============================================================================
+---
+# Every namespace, nightly — cluster-resource + PV safety net
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-cluster-backup
+  namespace: openshift-adp
+spec:
+  schedule: "30 3 * * *"                     # 03:30 daily — off-peak
+  template:
+    includedNamespaces: ["*"]
+    excludedNamespaces:
+      - openshift-adp
+      - openshift-infra
+      - openshift-monitoring
+    snapshotVolumes: false                   # NFS PVs -> nodeAgent handles files
+    defaultVolumesToFsBackup: true           # nodeAgent fs-backup for all PVs
+    ttl: 720h                                # keep 30 days
+    storageLocation: velero-dpa-1            # or leave default
+---
+# Critical namespaces only — tighter RPO, every 6h
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: critical-apps-6h
+  namespace: openshift-adp
+spec:
+  schedule: "0 */6 * * *"
+  template:
+    includedNamespaces:
+      - <critical-ns-1>
+      - <critical-ns-2>
+    defaultVolumesToFsBackup: true
+    ttl: 336h                                # keep 14 days
+---
+# One-off manual backup — `oc apply` this when needed, delete after
+# apiVersion: velero.io/v1
+# kind: Backup
+# metadata:
+#   name: <ad-hoc-name>
+#   namespace: openshift-adp
+# spec:
+#   includedNamespaces: ["<ns>"]
+#   defaultVolumesToFsBackup: true
