@@ -47,6 +47,7 @@ throughout every `issues/` and `checklists/` document.
 | [26](issues/26-ldap-ad-integration-centralized-auth/) | LDAP/Active Directory Integration: Centralized Auth & User/Group Management | 2026-09-23 | N/A (Procedure/Documentation) | Documented — LDAPS IdP on oauth/cluster, scheduled AD group sync CronJob, group-based RBAC, kubeadmin retirement; ready for execution |
 | [27](issues/27-etcd-backup-restore-crash-recovery/) | etcd Backup, Restore & Control-Plane Crash Recovery | 2026-09-23 | N/A (DR Runbook) | Documented — cluster-backup.sh snapshots + automation, member-rebuild and full cluster-restore.sh recovery paths, validation checklist; ready for execution |
 | [28](issues/28-load-balancer-planning-design/) | Load Balancer Planning & Design: Pod Traffic Distribution + External Exposure | 2026-09-23 | N/A (Architecture/Design) | Documented — 4-layer LB model (Service, Router/ingress, svc-infra HAProxy edge, MetalLB L4); probe-aligned health checks, source-IP and HA design, F5 CIS integration appendix; ready for review |
+| [29](issues/29-technical-leadership-day0-day2/) | Technical Leadership Playbook: High-Value Complex Engagements Day-0 → Day-2 | 2026-09-23 | N/A (Framework/Methodology) | Documented — lifecycle gates, discovery/ADR/risk templates, Day-2 handoff checklist; reusable across engagements |
 
 ---
 
