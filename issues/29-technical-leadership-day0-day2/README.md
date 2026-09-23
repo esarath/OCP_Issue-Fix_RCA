@@ -32,8 +32,9 @@ This repo is itself a Day-2 artifact — every `issues/NN-*` entry is the RCA/ru
 | What a tech lead owns per phase | [Playbook](Technical-Leadership-Playbook.md) Part 2 |
 | Day-0 discovery & architecture method | Playbook Part 3 + `templates/discovery-questionnaire.md` |
 | Design artifacts & decision recording | Playbook Part 3.4 + `templates/architecture-decision-record.md` |
+| NFRs & ADRs explained (concepts + examples) | [NFR-and-ADR-Explained.md](NFR-and-ADR-Explained.md) |
 | Day-1 build/validate/cutover | Playbook Part 4 + `checklists/` |
-| Day-2 ops model & handoff | Playbook Part 5 + `checklists/handoff.md` |
+| Day-2 ops model & handoff | Playbook Part 5 + `checklists/day2-handoff.md` |
 | Stakeholder/comms/risk practice | Playbook Part 6 + `templates/risk-register.md` |
 
 ## Files
@@ -42,6 +43,7 @@ This repo is itself a Day-2 artifact — every `issues/NN-*` entry is the RCA/ru
 29-technical-leadership-day0-day2/
 ├── README.md                                # This file
 ├── Technical-Leadership-Playbook.md         # Full methodology
+├── NFR-and-ADR-Explained.md                 # NFRs & ADRs deep-dive with worked examples
 ├── templates/
 │   ├── discovery-questionnaire.md           # Day-0 stakeholder/requirements capture
 │   ├── architecture-decision-record.md      # ADR template
