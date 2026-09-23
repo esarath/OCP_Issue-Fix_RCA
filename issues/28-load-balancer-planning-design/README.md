@@ -32,7 +32,7 @@ Layer 4  Raw L4 service exposure       MetalLB LoadBalancer IPs (192.168.29.70-9
 | Web app / API / Jenkins | **Route** on the OCP Router (L7, TLS, edge) | Part 4.1 |
 | Non-HTTP port to outside (DB, MQTT, agent JNLP) | **MetalLB LoadBalancer** service | Part 5 |
 | HA for the router itself | **svc-infra HAProxy** VIP → worker router endpoints | Part 4.2 + `manifests/external-haproxy-lb.cfg` |
-| Enterprise integration (F5/AVI/NGINX) | Ingress controller or ingress-lb pattern | Part 4.3 |
+| Enterprise integration (F5/AVI/NGINX) | Ingress controller or ingress-lb pattern | Part 4.3 + [F5-CIS-Integration.md](F5-CIS-Integration.md) |
 | Zero dropped connections on rollout/scale-down | Probe-aligned LB + preStop draining | Part 6 |
 
 ## Files
@@ -41,7 +41,11 @@ Layer 4  Raw L4 service exposure       MetalLB LoadBalancer IPs (192.168.29.70-9
 28-load-balancer-planning-design/
 ├── README.md                               # This file
 ├── LB-Planning-Design-Guide.md             # Full design + implementation doc
+├── F5-CIS-Integration.md                   # F5 BIG-IP via CIS: cluster-side config, RACI, CRDs
 ├── manifests/
+│   ├── f5-cis/
+│   │   ├── cis-deployment.yaml             # k8s-bigip-ctlr Deployment + RBAC
+│   │   └── virtualserver.yaml              # VirtualServer (L7) + TransportServer (L4)
 │   ├── external-haproxy-lb.cfg             # svc-infra: API:6443 + MCS:22623 + apps:80/443 frontends
 │   ├── metallb-config.yaml                 # IPAddressPool + L2Advertisement + sample LB service
 │   ├── ingresscontroller-tuning.yaml       # router replicas/strategy/tuning patch

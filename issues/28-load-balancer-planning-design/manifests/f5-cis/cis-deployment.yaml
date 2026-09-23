@@ -1,0 +1,71 @@
+# =============================================================================
+# F5 CIS (k8s-bigip-ctlr) — cluster-side controller deployment
+#
+# Prereqs:
+#   oc new-project f5-cis
+#   oc create secret generic bigip-login -n f5-cis \
+#     --from-literal=username=<cis-svc-account> --from-literal=password='<pw>'
+#
+# Alternative install paths: OLM "F5 BIG-IP CIS" operator, or upstream Helm.
+# =============================================================================
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-bigip-ctlr
+  namespace: f5-cis
+---
+# CIS needs broad read + route/ingress/CRD write — use the upstream-provided
+# ClusterRole for your CIS version; this is the minimal shape.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-bigip-ctlr
+rules:
+  - apiGroups: ["", "discovery.k8s.io"]
+    resources: ["endpoints", "endpointslices", "services", "pods", "nodes", "secrets", "namespaces", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["cis.f5.com"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-bigip-ctlr
+subjects:
+  - {kind: ServiceAccount, name: k8s-bigip-ctlr, namespace: f5-cis}
+roleRef: {kind: ClusterRole, name: k8s-bigip-ctlr, apiGroup: rbac.authorization.k8s.io}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-bigip-ctlr
+  namespace: f5-cis
+spec:
+  replicas: 1                          # CIS is control-plane only; 1 is enough
+  selector:
+    matchLabels: {app: k8s-bigip-ctlr}
+  template:
+    metadata:
+      labels: {app: k8s-bigip-ctlr}
+    spec:
+      serviceAccountName: k8s-bigip-ctlr
+      containers:
+        - name: k8s-bigip-ctlr
+          image: f5networks/k8s-bigip-ctlr:latest   # pin a released tag in real use
+          env:
+            - name: BIGIP_USERNAME
+              valueFrom: {secretKeyRef: {name: bigip-login, key: username}}
+            - name: BIGIP_PASSWORD
+              valueFrom: {secretKeyRef: {name: bigip-login, key: password}}
+          args:
+            - --bigip-url=https://<bigip-mgmt-ip>:443
+            - --bigip-partition=ocp_lab
+            - --pool-member-type=nodeport      # 'cluster' for VXLAN/pod-IP mode
+            - --manage-routes=true             # watch OpenShift Routes
+            - --insecure=true                  # LAB ONLY — mount BIG-IP CA for prod
+            # - --custom-resource-mode=true    # CRD-only mode (skip legacy ConfigMap)
