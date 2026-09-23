@@ -42,6 +42,7 @@ throughout every `issues/` and `checklists/` document.
 | [21](issues/21-security-patch-application-guide-4.20.35/) | Security Patch Application Guide for OpenShift 4.20.35 | 2026-09-17 | N/A (Procedure/Documentation) | Procedure documented and ready for execution — comprehensive security patch guide for 4.20.35 → 4.20.38 |
 | [22](issues/22-monitoring-scaling-approaches-memory-pressure-fix/) | Monitoring Scaling Approaches: Memory Pressure Fix Analysis | 2026-09-17 | Medium | Completed — CR patch approach successfully implemented to scale down monitoring replicas from 2 to 1 |
 | [23](issues/23-pv-pvc-released-state-cleanup-approaches/) | PV/PVC Released-State Cleanup: All Approaches & Storage Claim Scenarios | 2026-09-17 | Low | Completed — 12 Released PVs (54Gi) deleted, 6 Bound remain; NFS server-side dir cleanup is the remaining manual step |
+| [24](issues/24-stale-kubelet-ca-bundle-monitoring-blind-spot/) | Node Metrics Lost on worker-1: Stale Kubelet CA Bundle While CMO Is Unmanaged | 2026-09-21 | Low → Medium on 2026-09-25 | DRAFT — RCA complete, pending approval; re-enable CMO + clear ClusterVersion override recommended; blocks 4.20.38 patch |
 | [25](issues/25-tls-cert-config-autorotation-any-app/) | TLS Certificate Configuration & Auto-Rotation for Routes (Any App/DB) | 2026-09-23 | N/A (Procedure/Documentation) | Documented — lab CA + edge route cert; auto-rotation via cert-manager/openshift-routes or cron script; DB passthrough/service-CA patterns included |
 
 ---
