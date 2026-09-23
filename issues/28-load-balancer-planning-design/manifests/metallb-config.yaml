@@ -1,0 +1,66 @@
+# =============================================================================
+# MetalLB — L4 LoadBalancer IPs for bare-metal/UPI clusters
+#
+# LIVE STATE on this cluster (~/metallb/): operator installed,
+# IPAddressPool 'redis-test-pool' 192.168.29.70-90 + L2Advertisement.
+# This file is the generalized version — extend the live pool rather than
+# creating overlapping ones. NEVER allocate 192.168.29.10 (svc-infra VIP).
+# =============================================================================
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: lab-services-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.29.70-192.168.29.90      # L2 range on the node subnet
+  # autoAssign: true                   # set false to require explicit requests
+  # avoidBuggyIPs: true                # skip .0/.255 edge addresses
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: lab-l2-advertisement
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - lab-services-pool
+  # nodeSelectors:                     # limit which nodes may answer ARP
+  #   - matchLabels: {node-role.kubernetes.io/worker: ""}
+# =============================================================================
+# BGP alternative (needs a BGP-speaking ToR/router — not on this flat lab):
+#
+# apiVersion: metallb.io/v1beta1
+# kind: BGPPeer
+# metadata: {name: tor-switch, namespace: metallb-system}
+# spec:
+#   myASN: 64512
+#   peerASN: 64513
+#   peerAddress: 192.168.29.1
+# ---
+# apiVersion: metallb.io/v1beta1
+# kind: BGPAdvertisement
+# metadata: {name: lab-bgp-adv, namespace: metallb-system}
+# spec:
+#   ipAddressPools: [lab-services-pool]
+# =============================================================================
+---
+# Example: expose a non-HTTP service (Postgres) on a dedicated VIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-external
+  namespace: <app-namespace>
+  annotations:
+    metallb.io/address-pool: lab-services-pool     # optional pool pin
+spec:
+  type: LoadBalancer
+  # loadBalancerIP: 192.168.29.71                  # optional: pin a specific IP
+  externalTrafficPolicy: Local                    # preserves client source IP
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

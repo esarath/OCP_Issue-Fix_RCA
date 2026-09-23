@@ -1,0 +1,46 @@
+# =============================================================================
+# Default IngressController tuning — the OCP Router (HAProxy) is itself an
+# L7 ingress controller; this controls replicas, placement and strategy.
+#
+# View current:  oc get ingresscontroller/default -n openshift-ingress-operator -o yaml
+# Apply patch:   oc apply -f ingresscontroller-tuning.yaml
+#                (or: oc -n openshift-ingress-operator patch ingresscontroller/default --type=merge -p '<spec>')
+# =============================================================================
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: default
+  namespace: openshift-ingress-operator
+spec:
+  # --- Scale: one router per worker. On larger clusters pin via nodePlacement.
+  replicas: 2
+  # nodePlacement:
+  #   nodeSelector:
+  #     matchLabels: {node-role.kubernetes.io/worker: ""}
+  #   tolerations: [{key: "infra", operator: "Exists"}]
+
+  # --- How router endpoints are published to the external world.
+  # HostNetwork (UPI default): router binds :80/:443 on each worker's IP —
+  # external HAProxy targets worker IPs directly (see external-haproxy-lb.cfg).
+  endpointPublishingStrategy:
+    type: HostNetwork
+  # Cloud/IPI alternative: type: LoadBalancerService -> cloud LB or MetalLB VIP
+  # Private clusters: type: Private (internal-only router; pair with a second
+  # 'internal' IngressController for split-horizon)
+
+  # --- Source IP preservation for edge-terminated routes (optional):
+  # protocol: PROXY tells the router to accept PROXY protocol from the
+  # external LB; the LB must then SEND it (HAProxy: 'server ... send-proxy').
+  # httpHeaders:
+  #   forwardedHeaderPolicy: Append
+  # clientTLS / tlsSecurityProfile handled via route termination (see Issue 25)
+
+  # --- Performance tuning knobs worth knowing (defaults are sane):
+  # tuningOptions:
+  #   reloadInterval: 5s        # route/config reload cadence
+  #   clientTimeout: 30s
+  #   serverTimeout: 30s
+  #   maxConnections: 0         # 0 = auto (50000)
+  #   threadCount: 0            # 0 = auto (4 or #CPUs)
+  #   headerBufferSize: 32768
+  # unsupportedConfigOverrides: {}  # last-resort HAProxy config injection

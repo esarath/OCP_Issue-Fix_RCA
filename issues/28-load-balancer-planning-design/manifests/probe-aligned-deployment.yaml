@@ -1,0 +1,90 @@
+# =============================================================================
+# Reference Deployment — probe-aligned, drain-safe for LB traffic
+#
+# The contract with every LB in the path:
+#   readinessProbe  = "should this pod receive traffic NOW?"  -> Service endpoints
+#   livenessProbe   = "is this pod wedged?"                    -> kubelet restarts it
+#   startupProbe    = "still booting?"                         -> gates liveness/readiness
+#   preStop + grace = in-flight requests finish before SIGKILL
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <app-name>
+  namespace: <namespace>
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0            # never drop below desired during rollout
+  selector:
+    matchLabels: {app: <app-name>}
+  template:
+    metadata:
+      labels: {app: <app-name>}
+    spec:
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:                  # spread across workers
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: <app-name>}
+      containers:
+        - name: app
+          image: <image>
+          ports: [{containerPort: 8080, name: http}]
+          # 1. Startup probe — long-boot apps (JVM, Jenkins) need this so
+          #    liveness doesn't kill them mid-boot
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 5
+            failureThreshold: 30          # up to 150s to boot
+          # 2. Readiness — the ONLY signal the LB/endpoints should use.
+          #    Hit a cheap, dependency-aware endpoint. If the app can't serve,
+          #    it leaves the Service endpoints -> LBs stop sending it traffic.
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3           # ~15s of failure before removal
+          # 3. Liveness — keep it SHALLOW (process alive), never check
+          #    dependencies here or a DB blip restart-loops every pod at once
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # 4. Graceful stop — let the endpoint removal propagate before exit
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: <app-name>
+  namespace: <namespace>
+spec:
+  selector: {app: <app-name>}
+  ports: [{name: http, port: 8080, targetPort: http}]
+---
+# L7 exposure — edge TLS route (cert handling per Issue 25)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: <app-name>
+  namespace: <namespace>
+spec:
+  host: <app-name>-<namespace>.apps.lab.ocp.local
+  to: {kind: Service, name: <app-name>}
+  port: {targetPort: http}
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
