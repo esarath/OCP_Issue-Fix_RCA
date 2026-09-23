@@ -1,0 +1,79 @@
+# =============================================================================
+# Optional in-cluster scheduled etcd backup.
+#
+# NOTE: the simplest reliable approach on this cluster is the host-side script
+# (scripts/etcd-backup.sh) + cron — it uses the existing SSH key and needs no
+# privileged pods. Use this CronJob only if you want the backup to run inside
+# the cluster. It requires a cluster-admin service account token because
+# `oc debug node` needs privileged access.
+#
+# Setup:
+#   oc create namespace etcd-backup
+#   oc create sa etcd-backup -n etcd-backup
+#   oc adm policy add-cluster-role-to-user cluster-admin -z etcd-backup -n etcd-backup
+#     ^ wide — scope down if your security posture requires it
+#   oc apply -f etcd-backup-cronjob.yaml
+# =============================================================================
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: etcd-backup
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: etcd-backup
+  namespace: etcd-backup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: etcd-backup
+subjects:
+  - kind: ServiceAccount
+    name: etcd-backup
+    namespace: etcd-backup
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin          # required for oc debug node
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: etcd-backup
+  namespace: etcd-backup
+spec:
+  schedule: "0 2 * * *"                       # daily 02:00
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          serviceAccountName: etcd-backup
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: registry.redhat.io/openshift4/ose-cli:latest
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+                  NODE=$(oc get nodes -l node-role.kubernetes.io/master= \
+                         -o jsonpath='{.items[0].metadata.name}')
+                  TS=$(date +%Y%m%d-%H%M%S)
+                  echo "Backing up etcd via node $NODE"
+                  # cluster-backup.sh runs inside a debug pod on the node;
+                  # output lands in the node's host FS under /home/core/assets
+                  oc debug node/"$NODE" -- chroot /host \
+                    /usr/local/bin/cluster-backup.sh /home/core/assets/backup-$TS
+                  echo "Backup written to ${NODE}:/home/core/assets/backup-$TS"
+                  echo "NOTE: files stay on the node — pull them off-box"
+                  echo "      (scp/NFS) per the guide Part 3; do not rely on"
+                  echo "      node-local copies for real DR."
+              # Long-running backups: keep job alive just for the debug call
+          ttlSecondsAfterFinished: 86400

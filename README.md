@@ -45,6 +45,7 @@ throughout every `issues/` and `checklists/` document.
 | [24](issues/24-stale-kubelet-ca-bundle-monitoring-blind-spot/) | Node Metrics Lost on worker-1: Stale Kubelet CA Bundle While CMO Is Unmanaged | 2026-09-21 | Low → Medium on 2026-09-25 | DRAFT — RCA complete, pending approval; re-enable CMO + clear ClusterVersion override recommended; blocks 4.20.38 patch |
 | [25](issues/25-tls-cert-config-autorotation-any-app/) | TLS Certificate Configuration & Auto-Rotation for Routes (Any App/DB) | 2026-09-23 | N/A (Procedure/Documentation) | Documented — lab CA + edge route cert; auto-rotation via cert-manager/openshift-routes or cron script; DB passthrough/service-CA patterns included |
 | [26](issues/26-ldap-ad-integration-centralized-auth/) | LDAP/Active Directory Integration: Centralized Auth & User/Group Management | 2026-09-23 | N/A (Procedure/Documentation) | Documented — LDAPS IdP on oauth/cluster, scheduled AD group sync CronJob, group-based RBAC, kubeadmin retirement; ready for execution |
+| [27](issues/27-etcd-backup-restore-crash-recovery/) | etcd Backup, Restore & Control-Plane Crash Recovery | 2026-09-23 | N/A (DR Runbook) | Documented — cluster-backup.sh snapshots + automation, member-rebuild and full cluster-restore.sh recovery paths, validation checklist; ready for execution |
 
 ---
 
