@@ -1,0 +1,36 @@
+# ImageSetConfiguration for oc-mirror v2 — OCP 4.20.x -> 4.21.y disconnected upgrade.
+# Usage:
+#   connected host:   oc-mirror --config imageset-ocp-4.21.yaml file:///data/ocp-mirror --v2
+#   disconnected:     oc-mirror --from /data/ocp-mirror/mirror_<seq>.tar docker://<mirror>:<port> --v2
+#
+# BEFORE RUNNING:
+#   1. Replace 4.21.4 (example z-stream) with the exact target z-stream.
+#   2. Replace the operator package list with YOUR cluster's real OLM operators:
+#        oc get csv -A   (or: oc get packagemanifests)
+#   3. There is NO eus-4.21 channel — EUS only exists on even minors
+#      (eus-4.20, eus-4.22). Use fast-4.21 or stable-4.21 here.
+kind: ImageSetConfiguration
+apiVersion: mirror.openshift.io/v2alpha1
+mirror:
+  platform:
+    channels:
+    - name: fast-4.21
+      minVersion: 4.21.4      # pin to the single target release
+      maxVersion: 4.21.4
+      shortestPath: true      # only the images needed for this update path
+    graph: true               # build the OSUS graph image -> local update
+                            # recommendations inside the airgap
+  operators:
+    # --- catalog for the TARGET version (post-upgrade operator updates) ---
+  - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.21
+    packages:
+    - name: metallb-operator
+    - name: openshift-gitops-operator
+    - name: zero-trust-workload-identity-manager
+    # --- catalog for the CURRENT version (keeps operator rollback possible) ---
+  - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.20
+    packages:
+    - name: metallb-operator
+    - name: openshift-gitops-operator
+    - name: zero-trust-workload-identity-manager
+  additionalImages: []        # any bank-internal images workloads pull
