@@ -19,6 +19,7 @@ An end-to-end runbook for upgrading an **air-gapped** OpenShift cluster — one 
 | File | Purpose |
 |---|---|
 | [AIRGAP-UPGRADE-GUIDE.md](AIRGAP-UPGRADE-GUIDE.md) | **The runbook** — phased execution: pre-flight → backup → mirroring → cluster wiring → upgrade → validation → recovery. Every command annotated. |
+| [TEAM-COORDINATION-AND-APP-DB-COMPATIBILITY.md](TEAM-COORDINATION-AND-APP-DB-COMPATIBILITY.md) | **The non-platform half** — app/DB compatibility workstream (inventory → compatibility matrix → smoke-test contracts → in-window validation checkpoints) + role-by-role responsibilities and a full upgrade RACI for every team (app owners, DBA, security, CAB, network, storage, NOC, vendors, incident cmdr) |
 | [manifests/imageset-ocp-4.21.yaml](manifests/imageset-ocp-4.21.yaml) | Concrete oc-mirror image set config for this exact upgrade — copy, fill in operators/versions, run |
 | [scripts/install-oc-mirror.sh](scripts/install-oc-mirror.sh) | Download + install `oc` and `oc-mirror` correctly (they are **separate downloads** — see gotchas below) |
 | [scripts/airgap-preflight-check.sh](scripts/airgap-preflight-check.sh) | Pre-flight gate: mirror registry reachable, CA trusted, IDMS/ITMS applied, release image pullable through the mirror — run before opening the change window |

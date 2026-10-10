@@ -43,7 +43,17 @@ The paperwork layer. Banking production means none of this is optional:
       and `https://access.redhat.com/errata` (search `OpenShift Container Platform 4.21`).
 - [ ] **App owner sign-offs** — payments, channels, core-banking
       connectors, batch jobs. Someone from each team confirms their smoke
-      test and their contact number for the window.
+      test and their contact number for the window. **The full app/DB
+      compatibility workstream — inventory, per-app compatibility matrix,
+      smoke-test contracts, DBA internal-vs-external DB split — lives in
+      [TEAM-COORDINATION-AND-APP-DB-COMPATIBILITY.md](TEAM-COORDINATION-AND-APP-DB-COMPATIBILITY.md);
+      it runs in parallel with this guide's platform phases and has its
+      own deliverables at T-14d / T-7d / T-3d.**
+- [ ] **Team coordination confirmed** — every role in
+      [TEAM-COORDINATION-AND-APP-DB-COMPATIBILITY.md](TEAM-COORDINATION-AND-APP-DB-COMPATIBILITY.md)
+      Part 2 has a named human: app owners, DBA, security, network
+      (mirror-registry firewall/DNS is *their* row), storage/backup, NOC
+      (silences), incident commander for abort calls.
 - [ ] **Vendor/agent compatibility** — EDR/AV agents, monitoring agents
       (Dynatrace/AppD/NR), backup agents, service mesh: confirm each
       vendor certifies OCP 4.21.
