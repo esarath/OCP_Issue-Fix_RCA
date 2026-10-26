@@ -107,3 +107,7 @@ OCP_Issue-Fix_RCA/
 3. Add `RCA.md` (full root cause analysis)
 4. Add `scripts/` (any fix scripts used)
 5. Add a row to the Issue Index table above
+6. **If the issue includes `.html` docs**: link the rendered GitHub Pages URL in the
+   issue's `README.md` so it opens on click — pattern:
+   `https://esarath.github.io/OCP_Issue-Fix_RCA/issues/<NN-folder>/<doc>.html`
+   (keep the repo `source` link alongside; see issues 33/34 for the format)
