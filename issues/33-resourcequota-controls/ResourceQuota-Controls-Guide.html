@@ -40,6 +40,16 @@
   .callout.ok{border-color:var(--green);background:#eef9ee}
   .badge{display:inline-block;padding:3px 12px;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:#e8f0fb;color:var(--blue)}
   ul.tight li{margin:5px 0}
+  table.cmp{border-collapse:separate;border-spacing:0;border-radius:12px;overflow:hidden;border:1px solid var(--line);font-size:.92rem}
+  .cmp th,.cmp td{border:1px solid #dde3e8;padding:14px 16px}
+  .cmp th.fcol{background:#eef1f4;color:#3d3d3d;font-size:.95rem}
+  .cmp th.lr{background:#1565d8;color:#fff;text-align:left}
+  .cmp th.rq{background:#1a8917;color:#fff;text-align:left}
+  .cmp td.fcol{background:#f2f5f8;font-weight:600}
+  .cmp td.lrcol{background:#eef4fd}
+  .cmp td.rqcol{background:#eefaf0}
+  .mini{display:block;margin-top:8px}
+  .mini svg{display:block}
   footer{border-top:1px solid var(--line);margin-top:64px;padding:26px 20px;text-align:center;color:var(--muted);font-size:.8rem}
   .k{font-weight:700}
 </style>
@@ -498,6 +508,68 @@ pods don't fail en-masse.</div>
 </svg>
 <div class="caption">LimitRange cares about <b>each</b> pod's bounds; ResourceQuota cares about the <b>sum of everything</b> in the namespace.</div>
 </div>
+
+<h3>Feature-by-feature</h3>
+<table class="cmp">
+  <tr>
+    <th class="fcol" style="width:15%">Feature</th>
+    <th class="lr" style="width:42%">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="display:inline-flex;width:36px;height:36px;border-radius:9px;background:#0d4ea8;align-items:center;justify-content:center;font-size:20px">⚙</span>
+        <span><b style="font-size:1.05rem">LimitRange</b><br><span style="font-size:.75rem;font-weight:400;opacity:.9">Individual rules for resources</span></span>
+      </div>
+    </th>
+    <th class="rq" style="width:43%">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="display:inline-flex;width:36px;height:36px;border-radius:9px;background:#0f5e12;align-items:center;justify-content:center;font-size:20px">▤</span>
+        <span><b style="font-size:1.05rem">ResourceQuota</b><br><span style="font-size:.75rem;font-weight:400;opacity:.9">Shared budget for the namespace</span></span>
+      </div>
+    </th>
+  </tr>
+  <tr>
+    <td class="fcol">🎯 <b>Main purpose</b></td>
+    <td class="lrcol">Sets <b>defaults and boundaries</b> for individual resources.
+      <span class="mini"><svg width="150" height="56" viewBox="0 0 150 56"><rect x="2" y="10" width="52" height="40" rx="6" fill="#2e86de"/><polygon points="2,10 12,2 64,2 54,10" fill="#5dade2"/><polygon points="54,10 64,2 64,42 54,50" fill="#1a5fb4"/><text x="28" y="35" text-anchor="middle" font-size="16" fill="#fff">☸</text><rect x="72" y="6" width="74" height="44" rx="8" fill="#fff" stroke="#cfe0f4"/><text x="82" y="22" font-size="9.5" fill="#555">min</text><text x="82" y="34" font-size="9.5" fill="#555">max</text><text x="82" y="46" font-size="9.5" fill="#555">default</text></svg></span>
+    </td>
+    <td class="rqcol">Limits <b>total</b> resource usage within a <b>namespace</b>.
+      <span class="mini"><svg width="160" height="56" viewBox="0 0 160 56"><rect x="14" y="2" width="68" height="15" rx="7" fill="#1a8917"/><text x="48" y="13" text-anchor="middle" font-size="8.5" fill="#fff" font-weight="700">namespace</text><rect x="4" y="20" width="150" height="32" rx="8" fill="#f8fdf9" stroke="#7fc98f" stroke-dasharray="4 3"/><rect x="14" y="26" width="22" height="18" rx="4" fill="#2e86de"/><rect x="44" y="26" width="22" height="18" rx="4" fill="#7d3c98"/><rect x="74" y="26" width="22" height="18" rx="4" fill="#27ae60"/><rect x="104" y="26" width="22" height="18" rx="4" fill="#2e86de"/><rect x="130" y="26" width="22" height="18" rx="4" fill="#7d3c98"/></svg></span>
+    </td>
+  </tr>
+  <tr>
+    <td class="fcol">🔗 <b>Scope</b></td>
+    <td class="lrcol"><b>Individual containers</b> or supported resource types.
+      <span class="mini"><svg width="130" height="50" viewBox="0 0 130 50"><rect x="2" y="6" width="34" height="26" rx="5" fill="#2e86de"/><polygon points="2,6 10,0 44,0 36,6" fill="#5dade2"/><polygon points="36,6 44,0 44,26 36,32" fill="#1a5fb4"/><text x="19" y="23" text-anchor="middle" font-size="13" fill="#fff">☸</text><rect x="48" y="12" width="80" height="26" rx="6" fill="#fff" stroke="#cfe0f4"/><text x="88" y="29" text-anchor="middle" font-size="8.5" fill="#555">single container / Pod</text></svg></span>
+    </td>
+    <td class="rqcol"><b>Entire namespace.</b>
+      <span class="mini"><svg width="160" height="50" viewBox="0 0 160 50"><rect x="24" y="0" width="60" height="14" rx="7" fill="#1a8917"/><text x="54" y="10" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">namespace</text><rect x="6" y="16" width="148" height="30" rx="8" fill="#f8fdf9" stroke="#7fc98f" stroke-dasharray="4 3"/><rect x="20" y="22" width="20" height="17" rx="4" fill="#2e86de"/><rect x="50" y="22" width="20" height="17" rx="4" fill="#7d3c98"/><rect x="80" y="22" width="20" height="17" rx="4" fill="#27ae60"/><rect x="110" y="22" width="20" height="17" rx="4" fill="#2e86de"/></svg></span>
+    </td>
+  </tr>
+  <tr>
+    <td class="fcol">⚙ <b>CPU &amp; memory</b></td>
+    <td class="lrcol">Can define <b>minimums, maximums, and defaults</b>.
+      <span class="mini"><svg width="180" height="76" viewBox="0 0 180 76"><text x="0" y="16" font-size="10" fill="#444">⚙ CPU</text><text x="52" y="13" font-size="8.5" fill="#555">min: 100m</text><text x="52" y="24" font-size="8.5" fill="#555">max: 2</text><text x="52" y="35" font-size="8.5" fill="#555">default: 500m</text><text x="0" y="56" font-size="10" fill="#444">▤ Mem</text><text x="52" y="46" font-size="8.5" fill="#555">min: 256Mi</text><text x="52" y="57" font-size="8.5" fill="#555">max: 2Gi</text><text x="52" y="68" font-size="8.5" fill="#555">default: 512Mi</text></svg></span>
+    </td>
+    <td class="rqcol">Can limit <b>aggregate requests and limits</b>.
+      <span class="mini"><svg width="190" height="52" viewBox="0 0 190 52"><text x="0" y="14" font-size="9" fill="#444">⚙ CPU (requests)</text><rect x="92" y="5" width="70" height="10" rx="5" fill="#e8e4dc"/><rect x="92" y="5" width="35" height="10" rx="5" fill="#1a8917"/><text x="166" y="14" font-size="8" fill="#555">4 / 8 CPUs</text><text x="0" y="42" font-size="9" fill="#444">▤ Memory (requests)</text><rect x="92" y="33" width="70" height="10" rx="5" fill="#e8e4dc"/><rect x="92" y="33" width="26" height="10" rx="5" fill="#2e86de"/><text x="166" y="42" font-size="8" fill="#555">6 / 16 GiB</text></svg></span>
+    </td>
+  </tr>
+  <tr>
+    <td class="fcol">🧊 <b>Object counts</b></td>
+    <td class="lrcol">Not its primary purpose. <span style="color:#9aa0a6;font-size:1.2rem">—</span></td>
+    <td class="rqcol">Can limit <b>Pods, Services, PVCs</b>, and other supported objects.
+      <span class="mini"><svg width="210" height="34" viewBox="0 0 210 34"><rect x="0" y="4" width="48" height="26" rx="6" fill="#fff" stroke="#cfe0f4"/><text x="24" y="16" text-anchor="middle" font-size="8" fill="#1a6fd4" font-weight="700">📦 Pods</text><text x="24" y="26" text-anchor="middle" font-size="8" fill="#555">10</text><rect x="52" y="4" width="52" height="26" rx="6" fill="#fff" stroke="#e0d4f0"/><text x="78" y="16" text-anchor="middle" font-size="8" fill="#7d3c98" font-weight="700">🔗 Svc</text><text x="78" y="26" text-anchor="middle" font-size="8" fill="#555">5</text><rect x="108" y="4" width="48" height="26" rx="6" fill="#fff" stroke="#cfe8d6"/><text x="132" y="16" text-anchor="middle" font-size="8" fill="#1a8917" font-weight="700">▤ PVCs</text><text x="132" y="26" text-anchor="middle" font-size="8" fill="#555">10</text><rect x="160" y="4" width="48" height="26" rx="6" fill="#fff" stroke="#e6e2da"/><text x="184" y="16" text-anchor="middle" font-size="8" fill="#555" font-weight="700">… Others</text></svg></span>
+    </td>
+  </tr>
+  <tr>
+    <td class="fcol">📄 <b>Example</b></td>
+    <td class="lrcol">A container's memory limit <b>must not exceed 2 GiB</b>.
+      <span class="mini"><svg width="200" height="46" viewBox="0 0 200 46"><rect x="2" y="6" width="34" height="26" rx="5" fill="#2e86de"/><polygon points="2,6 10,0 44,0 36,6" fill="#5dade2"/><polygon points="36,6 44,0 44,26 36,32" fill="#1a5fb4"/><text x="19" y="23" text-anchor="middle" font-size="13" fill="#fff">☸</text><rect x="52" y="8" width="140" height="28" rx="8" fill="#fff" stroke="#cfe0f4"/><text x="122" y="26" text-anchor="middle" font-size="9.5" fill="#555">memory limit: <tspan font-weight="700">2 GiB (max)</tspan></text></svg></span>
+    </td>
+    <td class="rqcol">A namespace's total memory requests <b>must not exceed 8 GiB</b>.
+      <span class="mini"><svg width="210" height="46" viewBox="0 0 210 46"><rect x="74" y="0" width="62" height="14" rx="7" fill="#1a8917"/><text x="105" y="10" text-anchor="middle" font-size="8" fill="#fff" font-weight="700">namespace</text><rect x="6" y="16" width="198" height="28" rx="8" fill="#fff" stroke="#cfe8d6"/><text x="105" y="34" text-anchor="middle" font-size="9.5" fill="#555">▤ Total memory requests: <tspan font-weight="700">8 GiB (limit)</tspan></text></svg></span>
+    </td>
+  </tr>
+</table>
 
 <!-- ============ 4. ENFORCEMENT ============ -->
 <h2 id="s4"><span class="num">4</span>Where the Rejection Happens</h2>
