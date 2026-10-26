@@ -343,6 +343,162 @@ pods don't fail en-masse.</div>
   <tr><td><b>requests/limits</b></td><td>Each container</td><td>The units the quota counts</td></tr>
 </table>
 
+<h3>LimitRange vs ResourceQuota — a simple way to remember the difference</h3>
+<p><b>LimitRange</b> manages settings for each <i>individual</i> container or pod;
+<b>ResourceQuota</b> controls the <i>combined</i> usage of the whole namespace — the shared budget.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 1240 600" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <!-- ================= LEFT: LimitRange ================= -->
+  <rect x="20" y="20" width="590" height="560" rx="14" fill="#eef4fd" stroke="#a8c5ee" stroke-width="1.5"/>
+  <rect x="50" y="44" width="44" height="44" rx="9" fill="#1a6fd4"/>
+  <text x="72" y="76" text-anchor="middle" font-size="24" fill="#fff">⚙</text>
+  <text x="108" y="64" font-size="24" font-weight="800" fill="#1a4a7a">LimitRange</text>
+  <text x="108" y="87" font-size="12.5" fill="#4a6a8c">Manages resource settings for each individual</text>
+  <text x="108" y="104" font-size="12.5" fill="#4a6a8c">container or Pod in a namespace.</text>
+
+  <!-- namespace box -->
+  <rect x="48" y="145" width="534" height="270" rx="12" fill="#f7faff" stroke="#7fa8dd" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <rect x="60" y="133" width="120" height="24" rx="12" fill="#1a6fd4"/>
+  <text x="120" y="149" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">namespace: dev</text>
+
+  <!-- pod-1 (blue) -->
+  <rect x="106" y="163" width="62" height="20" rx="10" fill="#cfe1f8"/>
+  <text x="137" y="177" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1a6fd4">pod-1</text>
+  <polygon points="77,195 92,182 197,182 182,195" fill="#5dade2"/>
+  <polygon points="182,195 197,182 197,238 182,251" fill="#1a5fb4"/>
+  <rect x="77" y="195" width="105" height="56" rx="6" fill="#2e86de"/>
+  <g stroke="#fff" stroke-width="2.2" fill="none">
+    <circle cx="129" cy="223" r="11"/><circle cx="129" cy="223" r="2.6" fill="#fff"/>
+    <line x1="129" y1="214" x2="129" y2="232"/><line x1="120" y1="223" x2="138" y2="223"/>
+    <line x1="123" y1="217" x2="135" y2="229"/><line x1="135" y1="217" x2="123" y2="229"/>
+  </g>
+  <rect x="62" y="275" width="170" height="92" rx="8" fill="#fff" stroke="#d5e0ee" stroke-width="1"/>
+  <text x="76" y="294" font-size="10" font-weight="700" fill="#666">⚙ CPU</text>
+  <text x="76" y="310" font-size="10" fill="#333">0.5 – 1 CPU</text>
+  <text x="76" y="336" font-size="10" font-weight="700" fill="#666">▤ Memory</text>
+  <text x="76" y="352" font-size="10" fill="#333">256 Mi – 1 GiB</text>
+
+  <!-- pod-2 (green) -->
+  <rect x="283" y="163" width="62" height="20" rx="10" fill="#d5edd5"/>
+  <text x="314" y="177" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1a8917">pod-2</text>
+  <polygon points="254,195 269,182 374,182 359,195" fill="#58d68d"/>
+  <polygon points="359,195 374,182 374,238 359,251" fill="#1e8449"/>
+  <rect x="254" y="195" width="105" height="56" rx="6" fill="#27ae60"/>
+  <g stroke="#fff" stroke-width="2.2" fill="none">
+    <circle cx="306" cy="223" r="11"/><circle cx="306" cy="223" r="2.6" fill="#fff"/>
+    <line x1="306" y1="214" x2="306" y2="232"/><line x1="297" y1="223" x2="315" y2="223"/>
+    <line x1="300" y1="217" x2="312" y2="229"/><line x1="312" y1="217" x2="300" y2="229"/>
+  </g>
+  <rect x="239" y="275" width="170" height="92" rx="8" fill="#fff" stroke="#d5e0ee" stroke-width="1"/>
+  <text x="253" y="294" font-size="10" font-weight="700" fill="#666">⚙ CPU</text>
+  <text x="253" y="310" font-size="10" fill="#333">1 – 2 CPU</text>
+  <text x="253" y="336" font-size="10" font-weight="700" fill="#666">▤ Memory</text>
+  <text x="253" y="352" font-size="10" fill="#333">512 Mi – 2 GiB</text>
+
+  <!-- pod-3 (purple) -->
+  <rect x="460" y="163" width="62" height="20" rx="10" fill="#e9ddf3"/>
+  <text x="491" y="177" text-anchor="middle" font-size="10.5" font-weight="700" fill="#7d3c98">pod-3</text>
+  <polygon points="431,195 446,182 551,182 536,195" fill="#af7ac5"/>
+  <polygon points="536,195 551,182 551,238 536,251" fill="#5b2c6f"/>
+  <rect x="431" y="195" width="105" height="56" rx="6" fill="#7d3c98"/>
+  <g stroke="#fff" stroke-width="2.2" fill="none">
+    <circle cx="483" cy="223" r="11"/><circle cx="483" cy="223" r="2.6" fill="#fff"/>
+    <line x1="483" y1="214" x2="483" y2="232"/><line x1="474" y1="223" x2="492" y2="223"/>
+    <line x1="477" y1="217" x2="489" y2="229"/><line x1="489" y1="217" x2="477" y2="229"/>
+  </g>
+  <rect x="416" y="275" width="170" height="92" rx="8" fill="#fff" stroke="#d5e0ee" stroke-width="1"/>
+  <text x="430" y="294" font-size="10" font-weight="700" fill="#666">⚙ CPU</text>
+  <text x="430" y="310" font-size="10" fill="#333">0.5 – 1.5 CPU</text>
+  <text x="430" y="336" font-size="10" font-weight="700" fill="#666">▤ Memory</text>
+  <text x="430" y="352" font-size="10" fill="#333">1 – 3 GiB</text>
+
+  <!-- caption -->
+  <rect x="48" y="440" width="534" height="60" rx="8" fill="#dcebfc"/>
+  <circle cx="76" cy="470" r="10" fill="#1a6fd4"/><text x="76" y="475" text-anchor="middle" font-size="13" fill="#fff" font-weight="800">●</text>
+  <text x="98" y="466" font-size="11.5" font-weight="700" fill="#1a4a7a">LimitRange sets default, minimum, and maximum</text>
+  <text x="98" y="484" font-size="11.5" font-weight="700" fill="#1a4a7a">resource limits for each container.</text>
+
+  <!-- ================= RIGHT: ResourceQuota ================= -->
+  <rect x="630" y="20" width="590" height="560" rx="14" fill="#eefaf0" stroke="#a9dfbf" stroke-width="1.5"/>
+  <rect x="660" y="44" width="44" height="44" rx="9" fill="#1a8917"/>
+  <ellipse cx="682" cy="58" rx="15" ry="5" fill="#fff"/>
+  <rect x="667" y="58" width="30" height="20" fill="#fff"/>
+  <ellipse cx="682" cy="78" rx="15" ry="5" fill="#fff"/>
+  <text x="718" y="64" font-size="24" font-weight="800" fill="#1e5c2e">ResourceQuota</text>
+  <text x="718" y="87" font-size="12.5" fill="#4a7a58">Controls the total resource usage for the entire</text>
+  <text x="718" y="104" font-size="12.5" fill="#4a7a58">namespace (shared budget).</text>
+
+  <!-- namespace box -->
+  <rect x="658" y="145" width="534" height="270" rx="12" fill="#f8fdf9" stroke="#7fc98f" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <rect x="670" y="133" width="120" height="24" rx="12" fill="#1a8917"/>
+  <text x="730" y="149" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">namespace: dev</text>
+
+  <!-- totals card -->
+  <rect x="676" y="163" width="498" height="84" rx="10" fill="#fff" stroke="#cfe8d6" stroke-width="1"/>
+  <text x="700" y="196" font-size="11.5" font-weight="700" fill="#333">⚙ Total CPU (requests)</text>
+  <rect x="920" y="184" width="210" height="14" rx="7" fill="#e8e4dc"/>
+  <rect x="920" y="184" width="200" height="14" rx="7" fill="#1a8917"/>
+  <text x="1137" y="196" font-size="11" fill="#333" font-weight="700">3.8 / 4 CPUs</text>
+  <text x="700" y="230" font-size="11.5" font-weight="700" fill="#333">▤ Total Memory (requests)</text>
+  <rect x="920" y="218" width="210" height="14" rx="7" fill="#e8e4dc"/>
+  <rect x="920" y="218" width="158" height="14" rx="7" fill="#2e86de"/>
+  <text x="1137" y="230" font-size="11" fill="#333" font-weight="700">6 / 8 GiB</text>
+
+  <!-- pod-1 -->
+  <rect x="700" y="265" width="62" height="20" rx="10" fill="#cfe1f8"/>
+  <text x="731" y="279" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1a6fd4">pod-1</text>
+  <polygon points="692,297 704,286 782,286 770,297" fill="#5dade2"/>
+  <polygon points="770,297 782,286 782,336 770,347" fill="#1a5fb4"/>
+  <rect x="692" y="297" width="78" height="50" rx="6" fill="#2e86de"/>
+  <g stroke="#fff" stroke-width="2" fill="none">
+    <circle cx="731" cy="322" r="10"/><circle cx="731" cy="322" r="2.3" fill="#fff"/>
+    <line x1="731" y1="314" x2="731" y2="330"/><line x1="723" y1="322" x2="739" y2="322"/>
+    <line x1="726" y1="317" x2="736" y2="327"/><line x1="736" y1="317" x2="726" y2="327"/>
+  </g>
+  <rect x="677" y="360" width="110" height="46" rx="8" fill="#fff" stroke="#cfe8d6" stroke-width="1"/>
+  <text x="732" y="379" text-anchor="middle" font-size="10.5" fill="#333">0.5 CPU</text>
+  <text x="732" y="395" text-anchor="middle" font-size="10.5" fill="#333">1 GiB</text>
+
+  <!-- pod-2 -->
+  <rect x="878" y="265" width="62" height="20" rx="10" fill="#d5edd5"/>
+  <text x="909" y="279" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1a8917">pod-2</text>
+  <polygon points="870,297 882,286 960,286 948,297" fill="#58d68d"/>
+  <polygon points="948,297 960,286 960,336 948,347" fill="#1e8449"/>
+  <rect x="870" y="297" width="78" height="50" rx="6" fill="#27ae60"/>
+  <g stroke="#fff" stroke-width="2" fill="none">
+    <circle cx="909" cy="322" r="10"/><circle cx="909" cy="322" r="2.3" fill="#fff"/>
+    <line x1="909" y1="314" x2="909" y2="330"/><line x1="901" y1="322" x2="917" y2="322"/>
+    <line x1="904" y1="317" x2="914" y2="327"/><line x1="914" y1="317" x2="904" y2="327"/>
+  </g>
+  <rect x="855" y="360" width="110" height="46" rx="8" fill="#fff" stroke="#cfe8d6" stroke-width="1"/>
+  <text x="910" y="379" text-anchor="middle" font-size="10.5" fill="#333">1 CPU</text>
+  <text x="910" y="395" text-anchor="middle" font-size="10.5" fill="#333">2 GiB</text>
+
+  <!-- pod-3 -->
+  <rect x="1056" y="265" width="62" height="20" rx="10" fill="#e9ddf3"/>
+  <text x="1087" y="279" text-anchor="middle" font-size="10.5" font-weight="700" fill="#7d3c98">pod-3</text>
+  <polygon points="1048,297 1060,286 1138,286 1126,297" fill="#af7ac5"/>
+  <polygon points="1126,297 1138,286 1138,336 1126,347" fill="#5b2c6f"/>
+  <rect x="1048" y="297" width="78" height="50" rx="6" fill="#7d3c98"/>
+  <g stroke="#fff" stroke-width="2" fill="none">
+    <circle cx="1087" cy="322" r="10"/><circle cx="1087" cy="322" r="2.3" fill="#fff"/>
+    <line x1="1087" y1="314" x2="1087" y2="330"/><line x1="1079" y1="322" x2="1095" y2="322"/>
+    <line x1="1082" y1="317" x2="1092" y2="327"/><line x1="1092" y1="317" x2="1082" y2="327"/>
+  </g>
+  <rect x="1033" y="360" width="110" height="46" rx="8" fill="#fff" stroke="#cfe8d6" stroke-width="1"/>
+  <text x="1088" y="379" text-anchor="middle" font-size="10.5" fill="#333">0.5 CPU</text>
+  <text x="1088" y="395" text-anchor="middle" font-size="10.5" fill="#333">1 GiB</text>
+
+  <!-- caption -->
+  <rect x="658" y="440" width="534" height="60" rx="8" fill="#d6f0dd"/>
+  <text x="686" y="476" font-size="16" fill="#1a8917">👥</text>
+  <text x="708" y="466" font-size="11.5" font-weight="700" fill="#1e5c2e">ResourceQuota limits the combined resource usage</text>
+  <text x="708" y="484" font-size="11.5" font-weight="700" fill="#1e5c2e">of all objects in the namespace.</text>
+</svg>
+<div class="caption">LimitRange cares about <b>each</b> pod's bounds; ResourceQuota cares about the <b>sum of everything</b> in the namespace.</div>
+</div>
+
 <!-- ============ 4. ENFORCEMENT ============ -->
 <h2 id="s4"><span class="num">4</span>Where the Rejection Happens</h2>
 <p class="lead">Quota is checked by the <b>API-server admission controller</b> — before the object
