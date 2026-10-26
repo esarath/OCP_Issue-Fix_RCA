@@ -68,95 +68,229 @@
 <div class="wrap">
 
 <!-- ============ 1. STORY ============ -->
-<h2 id="s1"><span class="num">1</span>The Story: Three Teams, One Cluster</h2>
+<h2 id="s1"><span class="num">1</span>When Every Pod Looks Fine, but the Cluster Starts Struggling</h2>
 <p><span class="badge">Documented · reference guide</span></p>
-<p class="lead">Imagine a cluster shared by three teams — <b>dev</b>, <b>qa</b>, and <b>data-eng</b>.
-Every pod looks reasonable on its own. Then one afternoon, data-eng launches a batch job that
-spins up dozens of pods. Nothing is "wrong" with any single pod — but together they eat the
-whole node pool, and dev + qa start timing out.</p>
+<p class="lead">Imagine a cluster shared by three teams — <b>dev</b>, <b>qa</b>, and <b>data</b>.
+Every pod looks reasonable on its own. Then one afternoon, the data team launches a batch job
+that spins up dozens of pods. Nothing is "wrong" with any single pod — but together they eat
+the whole node pool, and dev + qa start timing out. <b>Left:</b> no quotas. <b>Right:</b> each
+namespace capped by its own budget.</p>
 
 <div class="diagram">
-<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
-  <!-- cluster -->
-  <rect x="10" y="12" width="740" height="276" rx="14" fill="#f4f1ea" stroke="#d8d2c4" stroke-width="1.5"/>
-  <text x="380" y="40" text-anchor="middle" font-size="15" font-weight="700" fill="#5c5648">SHARED CLUSTER — no quotas (first come, first served)</text>
+<svg viewBox="0 0 1240 660" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <!-- ================= LEFT PANEL: WITHOUT ================= -->
+  <rect x="10" y="10" width="595" height="630" rx="14" fill="#fdf1f0" stroke="#f0b3ad" stroke-width="1.5"/>
+  <rect x="24" y="24" width="567" height="54" rx="8" fill="#f7d7d4" stroke="#eba9a4" stroke-width="1"/>
+  <circle cx="52" cy="51" r="14" fill="#e74c3c"/>
+  <text x="52" y="57" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">!</text>
+  <text x="76" y="45" font-size="16" font-weight="800" fill="#7b241c">Without ResourceQuota</text>
+  <text x="76" y="64" font-size="11" fill="#8f5a52">One team can consume most of the cluster resources.</text>
 
-  <!-- dev ns -->
-  <rect x="34" y="62" width="216" height="200" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
-  <text x="142" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#1a6fd4">ns: dev</text>
-  <rect x="56" y="104" width="172" height="16" rx="8" fill="#cfe1f8"/>
-  <rect x="56" y="104" width="60" height="16" rx="8" fill="#1a6fd4"/>
-  <text x="142" y="146" text-anchor="middle" font-size="12" fill="#3d3d3d">CPU ~35% — starved by burst</text>
-  <text x="142" y="170" text-anchor="middle" font-size="22">⏳</text>
-  <text x="142" y="196" text-anchor="middle" font-size="12" fill="#b3402f" font-weight="600">latency alerts firing</text>
-  <text x="142" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">"why is dev slow?"</text>
+  <!-- dev card -->
+  <rect x="30" y="96" width="180" height="232" rx="10" fill="#ffffff" stroke="#1a6fd4" stroke-width="1.5"/>
+  <path d="M30 106 a10 10 0 0 1 10 -10 h160 a10 10 0 0 1 10 10 v18 h-180 z" fill="#1a6fd4"/>
+  <text x="120" y="116" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">👥 dev namespace</text>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(70,158)" fill="#5dade2" stroke="#1a6fd4" stroke-width="1.5"/>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(120,158)" fill="#5dade2" stroke="#1a6fd4" stroke-width="1.5"/>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(170,158)" fill="#5dade2" stroke="#1a6fd4" stroke-width="1.5"/>
+  <text x="120" y="206" text-anchor="middle" font-size="11" fill="#6b6b6b">Pods</text>
+  <text x="44" y="226" font-size="10.5" fill="#444">CPU: 2 / 10 cores</text>
+  <rect x="44" y="232" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="44" y="232" width="30" height="11" rx="5.5" fill="#1a8917"/>
+  <text x="44" y="256" font-size="10.5" fill="#444">Memory: 4 / 20 GiB</text>
+  <rect x="44" y="262" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="44" y="262" width="30" height="11" rx="5.5" fill="#1a8917"/>
+  <rect x="44" y="288" width="152" height="20" rx="10" fill="#f6f4ef" stroke="#b8b2a4" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="120" y="302" text-anchor="middle" font-size="10" fill="#8a8578" font-style="italic">no quota — unlimited</text>
 
-  <!-- qa ns -->
-  <rect x="272" y="62" width="216" height="200" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.6"/>
-  <text x="380" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#1a8917">ns: qa</text>
-  <rect x="294" y="104" width="172" height="16" rx="8" fill="#d5edd5"/>
-  <rect x="294" y="104" width="52" height="16" rx="8" fill="#1a8917"/>
-  <text x="380" y="146" text-anchor="middle" font-size="12" fill="#3d3d3d">CPU ~30% — also starved</text>
-  <text x="380" y="170" text-anchor="middle" font-size="22">⏳</text>
-  <text x="380" y="196" text-anchor="middle" font-size="12" fill="#b3402f" font-weight="600">test runs stalling</text>
-  <text x="380" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">"cluster feels broken"</text>
+  <!-- qa card -->
+  <rect x="216" y="96" width="180" height="232" rx="10" fill="#ffffff" stroke="#7d3c98" stroke-width="1.5"/>
+  <path d="M216 106 a10 10 0 0 1 10 -10 h160 a10 10 0 0 1 10 10 v18 h-180 z" fill="#7d3c98"/>
+  <text x="306" y="116" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">👥 qa namespace</text>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(286,158)" fill="#af7ac5" stroke="#7d3c98" stroke-width="1.5"/>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(326,158)" fill="#af7ac5" stroke="#7d3c98" stroke-width="1.5"/>
+  <text x="306" y="206" text-anchor="middle" font-size="11" fill="#6b6b6b">Pods</text>
+  <text x="230" y="226" font-size="10.5" fill="#444">CPU: 1 / 10 cores</text>
+  <rect x="230" y="232" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="230" y="232" width="15" height="11" rx="5.5" fill="#1a8917"/>
+  <text x="230" y="256" font-size="10.5" fill="#444">Memory: 3 / 20 GiB</text>
+  <rect x="230" y="262" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="230" y="262" width="23" height="11" rx="5.5" fill="#1a8917"/>
+  <rect x="230" y="288" width="152" height="20" rx="10" fill="#f6f4ef" stroke="#b8b2a4" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="306" y="302" text-anchor="middle" font-size="10" fill="#8a8578" font-style="italic">no quota — unlimited</text>
 
-  <!-- data-eng ns -->
-  <rect x="510" y="62" width="216" height="200" rx="10" fill="#fdf0ef" stroke="#ee2e24" stroke-width="2"/>
-  <text x="618" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#ee2e24">ns: data-eng</text>
-  <rect x="532" y="104" width="172" height="16" rx="8" fill="#f8d8d4"/>
-  <rect x="532" y="104" width="172" height="16" rx="8" fill="#ee2e24"/>
-  <text x="618" y="146" text-anchor="middle" font-size="12" fill="#3d3d3d">CPU ~95% — batch burst</text>
-  <text x="618" y="170" text-anchor="middle" font-size="22">🔥</text>
-  <text x="618" y="196" text-anchor="middle" font-size="12" fill="#8b1a1a" font-weight="700">dozens of new pods</text>
-  <text x="618" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">"works great for us!"</text>
+  <!-- data card -->
+  <rect x="402" y="96" width="180" height="232" rx="10" fill="#ffffff" stroke="#e74c3c" stroke-width="1.5"/>
+  <path d="M402 106 a10 10 0 0 1 10 -10 h160 a10 10 0 0 1 10 10 v18 h-180 z" fill="#e74c3c"/>
+  <text x="492" y="116" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">👥 data namespace</text>
+  <g fill="#f1948a" stroke="#c0392b" stroke-width="1.4">
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(442,140)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(492,140)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(542,140)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(442,166)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(492,166)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(542,166)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(442,192)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(492,192)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(542,192)"/>
+  </g>
+  <text x="492" y="216" text-anchor="middle" font-size="11" fill="#6b6b6b">Pods — batch burst</text>
+  <text x="416" y="232" font-size="10.5" fill="#444">CPU: 8 / 10 cores</text>
+  <rect x="416" y="238" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="416" y="238" width="122" height="11" rx="5.5" fill="#e74c3c"/>
+  <text x="416" y="262" font-size="10.5" fill="#444">Memory: 18 / 20 GiB</text>
+  <rect x="416" y="268" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="416" y="268" width="137" height="11" rx="5.5" fill="#e74c3c"/>
+  <rect x="416" y="288" width="152" height="20" rx="10" fill="#f6f4ef" stroke="#b8b2a4" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="492" y="302" text-anchor="middle" font-size="10" fill="#8a8578" font-style="italic">no quota — unlimited</text>
+
+  <!-- arrows to cluster -->
+  <line x1="120" y1="328" x2="215" y2="384" stroke="#1a6fd4" stroke-width="2"/>
+  <polygon points="218,392 210,383 206,390" fill="#1a6fd4"/>
+  <line x1="306" y1="328" x2="305" y2="384" stroke="#7d3c98" stroke-width="2"/>
+  <polygon points="305,392 299,382 311,382" fill="#7d3c98"/>
+  <line x1="492" y1="328" x2="405" y2="384" stroke="#e74c3c" stroke-width="2"/>
+  <polygon points="402,392 411,383 414,390" fill="#e74c3c"/>
+
+  <!-- cluster box -->
+  <rect x="60" y="390" width="500" height="118" rx="12" fill="#1f4e79"/>
+  <text x="310" y="416" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">☸ Kubernetes Cluster</text>
+  <text x="85" y="446" font-size="12" fill="#cfe0f0">⚙ CPU</text>
+  <rect x="170" y="435" width="330" height="16" rx="8" fill="#3a6ea5"/>
+  <rect x="170" y="435" width="302" height="16" rx="8" fill="#e74c3c"/>
+  <text x="508" y="448" font-size="11" fill="#fff" font-weight="700">11 / 12 cores</text>
+  <text x="85" y="482" font-size="12" fill="#cfe0f0">▤ Memory</text>
+  <rect x="170" y="471" width="330" height="16" rx="8" fill="#3a6ea5"/>
+  <rect x="170" y="471" width="258" height="16" rx="8" fill="#e74c3c"/>
+  <text x="508" y="484" font-size="11" fill="#fff" font-weight="700">25 / 32 GiB</text>
+
+  <!-- bottom team cards -->
+  <rect x="30" y="530" width="180" height="80" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.4"/>
+  <circle cx="52" cy="556" r="11" fill="#1a6fd4"/><text x="52" y="561" text-anchor="middle" font-size="12" fill="#fff" font-weight="800">⏳</text>
+  <text x="70" y="560" font-size="12" font-weight="800" fill="#1a4a7a">Dev team</text>
+  <text x="42" y="580" font-size="9.5" fill="#3d3d3d">Some Pods are stuck</text>
+  <text x="42" y="594" font-size="9.5" fill="#3d3d3d">waiting for resources.</text>
+
+  <rect x="216" y="530" width="180" height="80" rx="10" fill="#f3edf9" stroke="#7d3c98" stroke-width="1.4"/>
+  <circle cx="238" cy="556" r="11" fill="#7d3c98"/><text x="238" y="561" text-anchor="middle" font-size="12" fill="#fff" font-weight="800">⏳</text>
+  <text x="256" y="560" font-size="12" font-weight="800" fill="#5b2c6f">QA team</text>
+  <text x="228" y="580" font-size="9.5" fill="#3d3d3d">Workloads are taking</text>
+  <text x="228" y="594" font-size="9.5" fill="#3d3d3d">longer to start.</text>
+
+  <rect x="402" y="530" width="180" height="80" rx="10" fill="#fdf0ef" stroke="#e74c3c" stroke-width="1.4"/>
+  <circle cx="424" cy="556" r="11" fill="#e74c3c"/><text x="424" y="561" text-anchor="middle" font-size="12" fill="#fff" font-weight="800">!</text>
+  <text x="442" y="560" font-size="12" font-weight="800" fill="#8b1a1a">Data team</text>
+  <text x="414" y="580" font-size="9.5" fill="#3d3d3d">Batch job is consuming</text>
+  <text x="414" y="594" font-size="9.5" fill="#3d3d3d">most of the cluster.</text>
+
+  <!-- between-panels arrow -->
+  <polygon points="606,320 622,333 606,346" fill="#9aa0a6"/>
+
+  <!-- ================= RIGHT PANEL: WITH ================= -->
+  <rect x="625" y="10" width="595" height="630" rx="14" fill="#eefaf1" stroke="#a9dfbf" stroke-width="1.5"/>
+  <rect x="639" y="24" width="567" height="54" rx="8" fill="#d6f0dd" stroke="#a3d9b4" stroke-width="1"/>
+  <circle cx="667" cy="51" r="14" fill="#1a8917"/>
+  <text x="667" y="57" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">✓</text>
+  <text x="691" y="45" font-size="16" font-weight="800" fill="#1e5c2e">With ResourceQuota</text>
+  <text x="691" y="64" font-size="11" fill="#4a7a58">Each namespace has a defined resource budget.</text>
+
+  <!-- dev card -->
+  <rect x="645" y="96" width="180" height="232" rx="10" fill="#ffffff" stroke="#1a6fd4" stroke-width="1.5"/>
+  <path d="M645 106 a10 10 0 0 1 10 -10 h160 a10 10 0 0 1 10 10 v18 h-180 z" fill="#1a6fd4"/>
+  <text x="735" y="116" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">👥 dev namespace</text>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(685,158)" fill="#5dade2" stroke="#1a6fd4" stroke-width="1.5"/>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(735,158)" fill="#5dade2" stroke="#1a6fd4" stroke-width="1.5"/>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(785,158)" fill="#5dade2" stroke="#1a6fd4" stroke-width="1.5"/>
+  <text x="735" y="206" text-anchor="middle" font-size="11" fill="#6b6b6b">Pods</text>
+  <text x="659" y="226" font-size="10.5" fill="#444">CPU: 3 / 4 cores</text>
+  <rect x="659" y="232" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="659" y="232" width="114" height="11" rx="5.5" fill="#1a8917"/>
+  <text x="659" y="256" font-size="10.5" fill="#444">Memory: 6 / 8 GiB</text>
+  <rect x="659" y="262" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="659" y="262" width="114" height="11" rx="5.5" fill="#1a8917"/>
+  <rect x="659" y="288" width="152" height="20" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1"/>
+  <text x="735" y="302" text-anchor="middle" font-size="10" fill="#1a8917" font-weight="700">Quota: 4 cores, 8 GiB</text>
+
+  <!-- qa card -->
+  <rect x="831" y="96" width="180" height="232" rx="10" fill="#ffffff" stroke="#7d3c98" stroke-width="1.5"/>
+  <path d="M831 106 a10 10 0 0 1 10 -10 h160 a10 10 0 0 1 10 10 v18 h-180 z" fill="#7d3c98"/>
+  <text x="921" y="116" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">👥 qa namespace</text>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(891,158)" fill="#af7ac5" stroke="#7d3c98" stroke-width="1.5"/>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(921,158)" fill="#af7ac5" stroke="#7d3c98" stroke-width="1.5"/>
+  <polygon points="0,-13 11,-6.5 11,6.5 0,13 -11,6.5 -11,-6.5" transform="translate(951,158)" fill="#af7ac5" stroke="#7d3c98" stroke-width="1.5"/>
+  <text x="921" y="206" text-anchor="middle" font-size="11" fill="#6b6b6b">Pods</text>
+  <text x="845" y="226" font-size="10.5" fill="#444">CPU: 2 / 4 cores</text>
+  <rect x="845" y="232" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="845" y="232" width="76" height="11" rx="5.5" fill="#1a8917"/>
+  <text x="845" y="256" font-size="10.5" fill="#444">Memory: 4 / 8 GiB</text>
+  <rect x="845" y="262" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="845" y="262" width="76" height="11" rx="5.5" fill="#1a8917"/>
+  <rect x="845" y="288" width="152" height="20" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1"/>
+  <text x="921" y="302" text-anchor="middle" font-size="10" fill="#1a8917" font-weight="700">Quota: 4 cores, 8 GiB</text>
+
+  <!-- data card -->
+  <rect x="1017" y="96" width="180" height="232" rx="10" fill="#ffffff" stroke="#e74c3c" stroke-width="1.5"/>
+  <path d="M1017 106 a10 10 0 0 1 10 -10 h160 a10 10 0 0 1 10 10 v18 h-180 z" fill="#e74c3c"/>
+  <text x="1107" y="116" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">👥 data namespace</text>
+  <g fill="#f1948a" stroke="#c0392b" stroke-width="1.4">
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(1057,142)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(1107,142)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(1157,142)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(1057,170)"/>
+  </g>
+  <g fill="none" stroke="#c0392b" stroke-width="1.2" stroke-dasharray="3 3" opacity=".55">
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(1107,170)"/>
+    <polygon points="0,-9 8,-4.5 8,4.5 0,9 -8,4.5 -8,-4.5" transform="translate(1157,170)"/>
+  </g>
+  <circle cx="1172" cy="130" r="10" fill="#e74c3c"/>
+  <text x="1172" y="135" text-anchor="middle" font-size="12" fill="#fff" font-weight="800">✕</text>
+  <text x="1107" y="200" text-anchor="middle" font-size="10" font-weight="700" fill="#c0392b">Additional Pods are blocked</text>
+  <text x="1107" y="216" text-anchor="middle" font-size="11" fill="#6b6b6b">Pods</text>
+  <text x="1031" y="232" font-size="10.5" fill="#444">CPU: 4 / 4 cores</text>
+  <rect x="1031" y="238" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="1031" y="238" width="152" height="11" rx="5.5" fill="#e74c3c"/>
+  <text x="1031" y="262" font-size="10.5" fill="#444">Memory: 8 / 8 GiB</text>
+  <rect x="1031" y="268" width="152" height="11" rx="5.5" fill="#e8e4dc"/>
+  <rect x="1031" y="268" width="152" height="11" rx="5.5" fill="#e74c3c"/>
+  <rect x="1031" y="288" width="152" height="20" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1"/>
+  <text x="1107" y="302" text-anchor="middle" font-size="10" fill="#1a8917" font-weight="700">Quota: 4 cores, 8 GiB</text>
+
+  <!-- arrows to cluster -->
+  <line x1="735" y1="328" x2="835" y2="384" stroke="#1a6fd4" stroke-width="2"/>
+  <polygon points="838,392 830,383 826,390" fill="#1a6fd4"/>
+  <line x1="921" y1="328" x2="925" y2="384" stroke="#7d3c98" stroke-width="2"/>
+  <polygon points="925,392 919,382 931,382" fill="#7d3c98"/>
+  <line x1="1107" y1="328" x2="1025" y2="384" stroke="#e74c3c" stroke-width="2"/>
+  <polygon points="1022,392 1031,383 1034,390" fill="#e74c3c"/>
+
+  <!-- cluster box -->
+  <rect x="680" y="390" width="500" height="118" rx="12" fill="#1f4e79"/>
+  <text x="930" y="416" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">☸ Kubernetes Cluster</text>
+  <text x="705" y="446" font-size="12" fill="#cfe0f0">⚙ CPU</text>
+  <rect x="790" y="435" width="330" height="16" rx="8" fill="#3a6ea5"/>
+  <rect x="790" y="435" width="248" height="16" rx="8" fill="#1a8917"/>
+  <text x="1128" y="448" font-size="11" fill="#fff" font-weight="700">9 / 12 cores</text>
+  <text x="705" y="482" font-size="12" fill="#cfe0f0">▤ Memory</text>
+  <rect x="790" y="471" width="330" height="16" rx="8" fill="#3a6ea5"/>
+  <rect x="790" y="471" width="186" height="16" rx="8" fill="#1a8917"/>
+  <text x="1128" y="484" font-size="11" fill="#fff" font-weight="700">18 / 32 GiB</text>
+
+  <!-- bottom summary card -->
+  <rect x="645" y="530" width="552" height="80" rx="10" fill="#d6f0dd" stroke="#1a8917" stroke-width="1.4"/>
+  <circle cx="678" cy="570" r="14" fill="#1a8917"/><text x="678" y="576" text-anchor="middle" font-size="15" fill="#fff" font-weight="800">✓</text>
+  <text x="704" y="558" font-size="13" font-weight="800" fill="#1e5c2e">All teams can run their workloads</text>
+  <text x="704" y="578" font-size="10.5" fill="#2f6b2f">ResourceQuota keeps each namespace within its limits and helps</text>
+  <text x="704" y="593" font-size="10.5" fill="#2f6b2f">prevent one team from consuming all cluster resources.</text>
 </svg>
-<div class="caption">Every pod is reasonable. Together, one team's burst starves everyone else. There is no wall between them.</div>
+<div class="caption">Same three teams, same burst. Without quotas the batch job drains the shared pool; with quotas it stops at its own wall — additional pods are simply blocked.</div>
 </div>
 
 <!-- ============ 2. QUOTA = BUDGET ============ -->
 <h2 id="s2"><span class="num">2</span>ResourceQuota = A Budget Per Namespace</h2>
 <p class="lead">A <b>ResourceQuota</b> gives each namespace a <b>hard ceiling</b> — like a department
 budget. Requests are counted against it the moment a pod is <i>created</i>, not while it runs.
-Hit the ceiling and the API server simply says <b>no</b>.</p>
-
-<div class="diagram">
-<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
-  <rect x="10" y="12" width="740" height="276" rx="14" fill="#f4f1ea" stroke="#d8d2c4" stroke-width="1.5"/>
-  <text x="380" y="40" text-anchor="middle" font-size="15" font-weight="700" fill="#5c5648">SHARED CLUSTER — each namespace has its own budget</text>
-
-  <!-- dev -->
-  <rect x="34" y="62" width="216" height="200" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
-  <text x="142" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#1a6fd4">ns: dev · budget 8 CPU</text>
-  <rect x="56" y="110" width="172" height="20" rx="10" fill="#cfe1f8"/>
-  <rect x="56" y="110" width="103" height="20" rx="10" fill="#1a6fd4"/>
-  <text x="142" y="125" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">60% used</text>
-  <text x="142" y="162" text-anchor="middle" font-size="12" fill="#3d3d3d">headroom for growth</text>
-  <text x="142" y="196" text-anchor="middle" font-size="20">✅</text>
-  <text x="142" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">unbothered by neighbors</text>
-
-  <!-- qa -->
-  <rect x="272" y="62" width="216" height="200" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.6"/>
-  <text x="380" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#1a8917">ns: qa · budget 4 CPU</text>
-  <rect x="294" y="110" width="172" height="20" rx="10" fill="#d5edd5"/>
-  <rect x="294" y="110" width="69" height="20" rx="10" fill="#1a8917"/>
-  <text x="380" y="125" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">40% used</text>
-  <text x="380" y="162" text-anchor="middle" font-size="12" fill="#3d3d3d">tests keep running</text>
-  <text x="380" y="196" text-anchor="middle" font-size="20">✅</text>
-  <text x="380" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">isolated by the wall</text>
-
-  <!-- data-eng -->
-  <rect x="510" y="62" width="216" height="200" rx="10" fill="#fdf0ef" stroke="#ee2e24" stroke-width="1.6"/>
-  <text x="618" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#ee2e24">ns: data-eng · budget 2 CPU</text>
-  <rect x="532" y="110" width="172" height="20" rx="10" fill="#f8d8d4"/>
-  <rect x="532" y="110" width="172" height="20" rx="10" fill="#ee2e24"/>
-  <text x="618" y="125" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">100% used — capped</text>
-  <text x="618" y="162" text-anchor="middle" font-size="12" fill="#3d3d3d">next pod → 403 exceeded quota</text>
-  <text x="618" y="196" text-anchor="middle" font-size="20">🛑</text>
-  <text x="618" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">burst stopped at its own wall</text>
-</svg>
-<div class="caption">Same burst, different outcome — the batch job can only spend its own budget. It fails fast, inside its own namespace.</div>
-</div>
+Hit the ceiling and the API server simply says <b>no</b>: the new pod is blocked at admission,
+inside the offending namespace, while every other team keeps running.</p>
 
 <div class="callout">Quota counts <b>requests</b> (and limits) — the pod's reservation, not real
 usage. A pod requesting 1 CPU counts 1 CPU even while idling at 10m.</div>
