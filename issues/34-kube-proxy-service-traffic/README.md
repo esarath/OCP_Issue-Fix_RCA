@@ -38,7 +38,7 @@ oc get svc && oc get endpointslices -n <target-namespace>
 ## Files
 
 - [`Kube-Proxy-Guide.md`](Kube-Proxy-Guide.md) — full guide: interview snapshot, pod networking, ephemeral IPs, Services, kube-proxy mechanics, traffic path, DaemonSet install, OVN note — with mermaid diagrams
-- [`Kube-Proxy-Guide.html`](Kube-Proxy-Guide.html) — rendered standalone HTML (flat infographic SVG diagrams)
+- [🌐 `Kube-Proxy-Guide.html` — open rendered](https://esarath.github.io/OCP_Issue-Fix_RCA/issues/34-kube-proxy-service-traffic/Kube-Proxy-Guide.html) — standalone HTML (flat infographic SVG diagrams) · [`source`](Kube-Proxy-Guide.html)
 
 ## Related
 

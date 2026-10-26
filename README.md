@@ -5,6 +5,10 @@
 This repository is a living record of issues encountered on the OCP lab cluster.
 Each issue has its own folder containing the RCA, fix steps, and any scripts used.
 
+**Rendered docs**: visual (`.html`) guides open directly in the browser via GitHub Pages —
+`https://esarath.github.io/OCP_Issue-Fix_RCA/<path-in-repo>` — and are linked as "open rendered"
+inside each issue's README.
+
 **Reading commands in this repo**: anything wrapped in angle brackets —
 `<new-username>`, `<generated-password>`, `<target-namespace>`, `<date>`,
 etc. — is a **placeholder**, not literal text. Replace the *entire* token,

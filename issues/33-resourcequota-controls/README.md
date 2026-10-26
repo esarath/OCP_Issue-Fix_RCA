@@ -43,7 +43,7 @@ Full decision tree (which resource hit, sync lag, missing requests) →
 ## Files
 
 - [`ResourceQuota-Controls-Guide.md`](ResourceQuota-Controls-Guide.md) — full guide: enforcement flow, quota matrix, scopes, OCP ClusterResourceQuota, troubleshooting tree, GitOps pattern — with visual diagrams
-- [`ResourceQuota-Controls-Guide.html`](ResourceQuota-Controls-Guide.html) — rendered standalone HTML version (diagrams render in-browser)
+- [🌐 `ResourceQuota-Controls-Guide.html` — open rendered](https://esarath.github.io/OCP_Issue-Fix_RCA/issues/33-resourcequota-controls/ResourceQuota-Controls-Guide.html) — standalone HTML (flat infographic SVG diagrams) · [`source`](ResourceQuota-Controls-Guide.html)
 - [`manifests/resourcequota-compute.yaml`](manifests/resourcequota-compute.yaml) — standard compute + object-count quota
 - [`manifests/limitrange-defaults.yaml`](manifests/limitrange-defaults.yaml) — matching LimitRange (default/defaultRequest/min/max)
 - [`manifests/clusterresourcequota.yaml`](manifests/clusterresourcequota.yaml) — OCP multi-project quota by label selector
