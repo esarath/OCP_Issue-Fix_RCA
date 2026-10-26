@@ -8,162 +8,269 @@
 | **Audience** | OCP administrators, platform engineers, GitOps operators |
 | **Related** | Namespace onboarding automation, LimitRange defaults, ClusterResourceQuota (multi-project) |
 
----
-
-## 1. What ResourceQuota Is — and Why It Exists
-
-A **ResourceQuota** is a namespace-scoped object that sets a **hard ceiling** on the total
-resources a namespace may consume. On a shared cluster, quotas are the **bulkhead**:
-one team can never consume so much CPU, memory, storage, or object count that it sinks
-the other tenants.
-
-Without quotas, every namespace competes for the whole cluster — first come, first served.
-With quotas, each namespace gets a bounded slice, enforced at **admission time** (before
-the object is persisted), not after the fact.
-
-```mermaid
-flowchart TD
-    subgraph CLUSTER["Shared OCP Cluster — total capacity"]
-        subgraph NS1["namespace: team-a<br/>quota: 8 CPU / 16Gi"]
-            P1["pods<br/>Σ requests ≤ 8 CPU"]
-        end
-        subgraph NS2["namespace: team-b<br/>quota: 4 CPU / 8Gi"]
-            P2["pods<br/>Σ requests ≤ 4 CPU"]
-        end
-        subgraph NS3["namespace: batch-jobs<br/>quota: 2 CPU / 4Gi"]
-            P3["pods<br/>Σ requests ≤ 2 CPU"]
-        end
-    end
-    X["noisy-neighbor workload<br/>tries to exceed its quota"] -->|REJECTED at admission| NS3
-    style X fill:#8b1a1a,color:#fff
-    style NS3 fill:#3d2f00
-```
+> 📄 Companion visual doc: [`ResourceQuota-Controls-Guide.html`](ResourceQuota-Controls-Guide.html) — same content with flat infographic-style diagrams.
 
 ---
 
-## 2. The Governance Stack — How the Pieces Fit
+## 0. Interview Snapshot — The 60-Second Story
 
-ResourceQuota never works alone. The complete namespace-governance model has four layers:
+> *"We ran a shared cluster across three teams — dev, QA, and data engineering. One afternoon
+> the data team fired off a batch job: dozens of pods, each perfectly reasonable on its own.
+> Individually fine. Collectively, they starved the cluster — dev deploys stalled, QA workloads
+> queued, and nothing in any single pod spec looked wrong.*
+>
+> *The real gap: there was no boundary on how much of the shared pool one namespace could take.
+> I fixed it with ResourceQuota — a hard budget per namespace on CPU, memory, and object counts —
+> paired with LimitRange defaults so pods without declared requests stopped failing admission.
+> Then I codified it: quota + limitrange + network policy + RBAC all provisioned together via
+> ArgoCD during namespace onboarding — no tickets, no drift.*
+>
+> *Result: the noisy-neighbor failure mode disappeared, and onboarding went from hours to minutes."*
+
+**Quotable lines worth stealing:**
+
+- "A quota is a budget per namespace — not a promise of capacity."
+- "LimitRange cares about each pod's bounds; ResourceQuota cares about the sum of everything."
+- "Deployment accepted but no pods? Check the ReplicaSet events — the quota error lives there."
+- "It's the family data plan: every member gets an allowance, but the plan itself has a ceiling."
+
+**If asked for a one-liner:** *"On a shared cluster, quota is the bulkhead — one team can never
+sink the others."*
+
+---
+
+## 1. When Every Pod Looks Fine, but the Cluster Starts Struggling
+
+Imagine a cluster shared by three teams: **development**, **QA**, and **data engineering**.
+Everything looks fine — each team deploys apps, sets CPU/memory limits, follows the guidelines.
+
+Then, one afternoon, the data team starts a batch job. Dozens of pods — each reasonable on its
+own — together consume a significant share of the cluster. Dev's new pods sit waiting; QA's
+workloads take longer to start.
+
+**The problem isn't any one pod — it's that nobody set a limit on how much the entire data
+namespace could consume.**
 
 ```mermaid
 flowchart TB
-    CRQ["ClusterResourceQuota<br/>(OpenShift only — quota spanning<br/>MULTIPLE namespaces by selector)"]
-    RQ["ResourceQuota<br/>(namespace ceiling —<br/>sum of requests/limits, object counts, storage)"]
-    LR["LimitRange<br/>(per-object defaults & min/max —<br/>injects requests/limits into pods that omit them)"]
-    POD["Pod spec<br/>requests/limits<br/>(what the quota actually counts)"]
-
-    CRQ -->|aggregates across selected namespaces| RQ
-    RQ -->|reject if Σ usage + new pod > hard| POD
-    LR -->|default/limit injects values| POD
-    POD -->|must carry requests once<br/>compute quota exists| RQ
-
-    style CRQ fill:#1a3a5c,color:#fff
-    style RQ fill:#2f5d3f,color:#fff
-    style LR fill:#5c4a1a,color:#fff
-```
-
-| Layer | Scope | Purpose |
-|---|---|---|
-| **ClusterResourceQuota** | Many namespaces (label selector) | OCP-only. Give a *team* a pool spanning its dev/test/qa projects |
-| **ResourceQuota** | One namespace | Hard ceiling on Σ requests, Σ limits, storage, object counts |
-| **LimitRange** | One namespace | Per-container/pod min, max, and **defaults** — makes quota enforcement usable |
-| **requests/limits** | Each container | The units the quota counts |
-
-> **The critical interaction:** once a compute quota (`requests.cpu`, `requests.memory`,
-> `limits.cpu`, `limits.memory`) exists in a namespace, **every new pod must declare
-> those values** or it is rejected. A LimitRange with defaults is what keeps
-> "developer applies a pod with no requests" from becoming a wall of quota errors.
-
----
-
-## 3. Enforcement — Where the Rejection Happens
-
-Quota is enforced by the **API-server admission controller**, not by the scheduler or
-kubelet. The object's `status.used` is a cache refreshed asynchronously
-(`resource-quota-sync-period`, default 5m on the controller).
-
-```mermaid
-sequenceDiagram
-    participant U as User / CI / ArgoCD
-    participant A as API Server<br/>admission chain
-    participant Q as ResourceQuota<br/>admission plugin
-    participant E as etcd
-
-    U->>A: create Pod / PVC / Service ...
-    A->>Q: check namespace quotas
-    Q->>Q: used + requested ≤ hard?
-    alt Within quota
-        Q-->>A: ALLOW
-        A->>E: persist object
-        A-->>U: 201 Created
-        Note over Q: status.used updated<br/>async by controller
-    else Exceeds quota
-        Q-->>A: DENY
-        A-->>U: 403 Forbidden<br/>"exceeded quota: <name>, requested: ..., used: ..., limited: ..."
-        Note over U: object NEVER exists —<br/>no partial creation
+    subgraph CLUSTER["Shared cluster — no quotas (first come, first served)"]
+        NS1["ns dev · CPU ~35%<br/>starved ⏳"]
+        NS2["ns qa · CPU ~30%<br/>starved ⏳"]
+        NS3["ns data-eng · CPU ~95%<br/>batch burst 🔥"]
     end
+    X["batch job creates<br/>dozens of pods"] --> NS3
+    NS3 -.->|drains the pool| NS1
+    NS3 -.->|drains the pool| NS2
+    style X fill:#8b1a1a,color:#fff
+    style NS3 fill:#fdf0ef,stroke:#e74c3c
 ```
-
-**Consequences of admission-time enforcement:**
-
-- Failures appear as `403 Forbidden` / `Error from server (Forbidden): pods "x" is forbidden: exceeded quota` — **not** as Pending pods.
-- Quota counts **requests** (and limits), not real usage. A pod requesting 1 CPU counts 1 CPU even while idling at 10m.
-- `status.used` can lag actual objects by up to the sync period — newly deleted pods may still count briefly.
 
 ---
 
-## 4. What Can Be Quota'd — The Full Matrix
+## 2. The Budget Idea
 
-### 4.1 Compute & storage
+Instead of looking at consumption one pod at a time, **ResourceQuota** defines a **budget for the
+whole namespace**. Once that budget is reached, Kubernetes prevents additional usage that would
+exceed it.
 
-| Quota key | Counts | Notes |
-|---|---|---|
-| `requests.cpu` / `requests.memory` | Σ pod requests | Primary scheduling contract |
-| `limits.cpu` / `limits.memory` | Σ pod limits | Cap the cap |
-| `requests.storage` | Σ PVC sizes | All StorageClasses combined |
-| `<storage-class>.storageclass.storage.k8s.io/requests.storage` | Σ PVC size per class | e.g. `nfs.csi.storageclass.storage.k8s.io/requests.storage` |
-| `persistentvolumeclaims` | Count of PVCs | Prevent claim sprawl |
+Think of it as giving every team its own allowance, rather than letting everyone draw from the
+shared pool without a defined limit.
 
-### 4.2 Object counts (defends the control plane, not the nodes)
+> **Key detail:** quota counts **requests** (and limits) — the pod's reservation, not real usage.
+> A pod requesting 1 CPU counts 1 CPU even while idling at 10m.
 
-| Quota key | Protects against |
-|---|---|
-| `pods` | Pod flood |
-| `services`, `services.loadbalancers`, `services.nodeports` | Service/LB sprawl |
-| `secrets`, `configmaps` | etcd bloat |
-| `replicationcontrollers`, `deployments.apps`, `statefulsets.apps`, `jobs.batch`, `cronjobs.batch`, `deploymentconfigs.apps.openshift.io` | Object sprawl per kind |
-| `count/<resource>.<group>` | **Any** resource, incl. CRDs — e.g. `count/routes.route.openshift.io: 10` |
+---
 
-### 4.3 Scopes — quota that applies only to matching pods
+## 3. First, Understand the Difference: LimitRange vs ResourceQuota
 
-| Scope | Selects pods that are… | Typical use |
-|---|---|---|
-| `BestEffort` | no requests/limits at all | Cap unbounded pods: `scopes: [BestEffort]`, `hard: pods: "0"` bans them outright |
-| `NotBestEffort` | have at least one request/limit | Normal compute quotas |
-| `Terminating` | have `spec.activeDeadlineSeconds` | Reserve room for jobs |
-| `NotTerminating` | long-running | Default workloads |
-| `PriorityClass` | `priorityClassName` in a list | Give prod pods a bigger slice than dev |
+The two sound similar but solve different problems:
+
+- **LimitRange** controls resources assigned to **individual** containers — defaults, min, max.
+- **ResourceQuota** controls the **total** usage of selected resources or objects **per namespace**.
+
+**The family-plan analogy:** each family member has an individual data allowance (LimitRange).
+The family also has a total monthly plan (ResourceQuota). The two complement each other.
 
 ```mermaid
 flowchart LR
-    subgraph ONE_NS["one namespace — scoped quotas side by side"]
-        QP["quota: prod-pods<br/>scopes: PriorityClass(prod-high)<br/>hard: 10 CPU"]
-        QD["quota: dev-pods<br/>scopes: PriorityClass(dev-low)<br/>hard: 4 CPU"]
-        QB["quota: no-unlimited<br/>scopes: BestEffort<br/>hard: pods=0"]
+    subgraph LR["LimitRange — per-container bounds"]
+        P1["pod-1<br/>0.5–1 CPU / 256Mi–1Gi"]
+        P2["pod-2<br/>1–2 CPU / 512Mi–2Gi"]
+        P3["pod-3<br/>0.5–1.5 CPU / 1–3Gi"]
     end
-    NP["new pod"] --> NP1{priority class?}
-    NP1 -->|prod-high| QP
-    NP1 -->|dev-low| QD
-    NP1 -->|no requests| QB
-    QB -->|pods: 0| RJ["REJECTED<br/>BestEffort banned"]
-    style RJ fill:#8b1a1a,color:#fff
+    subgraph RQ["ResourceQuota — shared namespace budget"]
+        T["Total CPU (requests): 3.8 / 4<br/>Total Memory: 6 / 8 GiB"]
+        Q1["pod-1 · 0.5 CPU"] --- T
+        Q2["pod-2 · 1 CPU"] --- T
+        Q3["pod-3 · 0.5 CPU"] --- T
+    end
+```
+
+### Feature-by-feature
+
+| Feature | LimitRange | ResourceQuota |
+|---|---|---|
+| **Main purpose** | Defaults & boundaries for individual resources | Limits **total** usage within a namespace |
+| **Scope** | Individual containers / supported types | Entire namespace |
+| **CPU & memory** | min / max / defaults per container | Aggregate requests and limits |
+| **Object counts** | Not its purpose | Pods, Services, PVCs, `count/<resource>.<group>` — anything |
+| **Example** | "A container's memory limit must not exceed 2 GiB" | "Namespace memory requests must not exceed 8 GiB" |
+
+---
+
+## 4. Create Your First ResourceQuota
+
+For namespace `dev` — a CPU/memory budget plus object-count caps (`quota.yaml`):
+
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dev-team-quota
+  namespace: dev
+spec:
+  hard:
+    requests.cpu: "4"        # sum of pod CPU requests
+    requests.memory: "8Gi"   # sum of pod memory requests
+    limits.cpu: "8"          # sum of pod CPU limits
+    limits.memory: "16Gi"    # sum of pod memory limits
+    pods: "20"
+    services: "5"
+    persistentvolumeclaims: "10"
+    configmaps: "20"
+    secrets: "20"
+```
+
+- `metadata` pins the quota to namespace `dev`; `spec.hard` lists the ceilings.
+- **requests** = what pods ask to reserve; **limits** = the max they're allowed to use — different
+  measurements serving different purposes.
+- ⚠️ A quota is **not** a promise of capacity — the cluster must still have the room.
+
+---
+
+## 5. Apply the Quota
+
+```bash
+oc create namespace dev        # skip if it exists (kubectl identical)
+oc apply -f quota.yaml
+```
+
+That's it — the namespace now has an enforced budget.
+
+---
+
+## 6. Check How Much of the Quota Is Used
+
+```bash
+oc describe resourcequota dev-team-quota -n dev   # Used vs Hard per resource
+oc get resourcequota -n dev                        # list quotas
+oc get events -n dev --sort-by=.lastTimestamp      # recent quota errors
+```
+
+If `requests.cpu` shows `Used: 1500m` against `Hard: 4` → 1.5 CPUs consumed, **2.5 CPUs headroom**.
+
+> **Practical tip:** when a deployment suddenly stops creating pods, check quota usage first —
+> the namespace may simply have hit its budget.
+
+---
+
+## 7. What Happens When the Quota Is Reached?
+
+Namespace budget: `requests.cpu: "4"`. Already used: **3.8**. New pod asks **500m**:
+
+```
+3.8 used + 0.5 new = 4.3 > 4 hard  →  403 Forbidden: exceeded quota: dev-team-quota
+```
+
+The **cluster** didn't run out of CPU — the **namespace** ran out of budget. On shared clusters,
+that distinction is everything.
+
+```mermaid
+flowchart LR
+    U["used 3.8 CPU"] --> S(("+"))
+    N["new pod 0.5 CPU"] --> S
+    S --> T{"4.3 > 4?"}
+    T -->|yes| R["✗ REJECTED<br/>403 exceeded quota"]
+    T -->|no| A["✓ admitted"]
+    style R fill:#fdf0ef,stroke:#e74c3c
 ```
 
 ---
 
-## 5. OpenShift-Specific Mechanics
+## 8. What If the Pod Belongs to a Deployment?
 
-### 5.1 ClusterResourceQuota — one pool, many projects
+The confusing case: you apply a Deployment — Kubernetes **accepts it** — but pods never appear.
+
+A Deployment manages ReplicaSets, which create Pods. **The Deployment object itself doesn't
+consume quota** — only pods do. So it exists happily while its ReplicaSet keeps failing below.
+
+```
+Deployment ✓ accepted  →  ReplicaSet ✓ created  →  Pods ✗ blocked (exceeded quota)
+```
+
+```bash
+oc describe replicaset <rs-name> -n dev   # the quota error lives HERE
+oc get events -n dev --sort-by=.lastTimestamp
+```
+
+Then: reduce requests, remove unneeded workloads, or raise the quota (with approval).
+
+---
+
+## 9. One Common Gotcha: Missing CPU or Memory Requests
+
+If a quota tracks `requests.cpu`/`memory`, a pod that **doesn't declare them can't be counted** —
+so it's rejected. Same for tracked limits.
+
+This is why the pair ship together — LimitRange supplies defaults (`limitrange.yaml`):
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-container-resources
+  namespace: dev
+spec:
+  limits:
+    - type: Container
+      defaultRequest: { cpu: "100m", memory: "128Mi" }   # injected when omitted
+      default:        { cpu: "500m", memory: "512Mi" }
+```
+
+```bash
+oc apply -f limitrange.yaml
+```
+
+```mermaid
+flowchart LR
+    A["Pod A — no requests<br/>quota can't count it<br/>✗ REJECTED"] -->|"LimitRange<br/>injects defaults"| B["Pod B — 100m/128Mi<br/>✓ ADMITTED"]
+    style A fill:#fdf0ef,stroke:#e74c3c
+    style B fill:#eef9ee,stroke:#1a8917
+```
+
+Defaults apply at **admission** — they don't rewrite existing pods.
+
+---
+
+## 10. ResourceQuota Isn't a Replacement for Capacity Planning
+
+Three distinct outcomes — don't confuse them:
+
+| Situation | Result |
+|---|---|
+| Within quota + nodes have room | ✓ pod schedules and runs |
+| Within quota, but no node fits | ⏳ pod stays **Pending** — a *scheduling* issue, not quota |
+| Would exceed quota | ✗ rejected at admission — `403 exceeded quota` |
+
+Quota is one part of the strategy — good requests, sensible limits, capacity planning, and
+workload monitoring still matter.
+
+---
+
+## 11. OpenShift Extras — ClusterResourceQuota & Scopes
+
+OCP adds **ClusterResourceQuota** (CRQ): one shared pool across **many** projects selected by
+namespace label — "team A gets 12 CPU across dev, test, qa."
 
 ```yaml
 apiVersion: quota.openshift.io/v1
@@ -173,7 +280,7 @@ metadata:
 spec:
   selector:
     labels:
-      team: a                      # every project with label team=a shares ONE pool
+      team: a                      # every project labeled team=a shares ONE pool
   quota:
     hard:
       requests.cpu: "12"
@@ -181,168 +288,75 @@ spec:
       pods: "60"
 ```
 
-- Selected via namespace **labels** (`spec.selector.labels`) or annotation
-  `openshift.io/quota: <crq-name>` (`spec.selector.annotations`).
-- **Rate-limited deliberately:** CRQ usage syncs slowly (~minutes by design) so it is
-  not suited to instantaneous enforcement — plan buffer accordingly.
-- A namespace can be selected by only **one** CRQ.
-
 ```mermaid
 flowchart TB
-    CRQ["ClusterResourceQuota: team-a-aggregate<br/>hard: 12 CPU / 24Gi / 60 pods"]
-    N1["project: shop-dev<br/>team=a"]
-    N2["project: shop-test<br/>team=a"]
-    N3["project: shop-qa<br/>team=a"]
-    N4["project: other<br/>team=b — not selected"]
-    N1 & N2 & N3 -->|share the single 12-CPU pool| CRQ
-    N4 -.->|unaffected| CRQ
-    style CRQ fill:#1a3a5c,color:#fff
+    N1["shop-dev · team=a"] & N2["shop-test · team=a"] & N3["shop-qa · team=a"]
+    N1 & N2 & N3 -->|share one pool| CRQ(("ClusterResourceQuota<br/>12 CPU · 24Gi · 60 pods"))
+    N4["other · team=b"] -.->|not selected| CRQ
+    style CRQ fill:#e9e4f8,stroke:#6b46c1
 ```
 
-### 5.2 Other OCP nuances
+- Selection via `spec.selector.labels` or the `openshift.io/quota: <name>` annotation.
+- CRQ usage syncs **slowly by design** (~minutes) — not for instantaneous enforcement.
+- A namespace may be selected by only **one** CRQ.
+- Never quota `openshift-*`, `kube-*`, `default`.
+- The **Project Request Template** can inject quota+limitrange into every new project — quotas become default-on.
+- Inspect: `oc describe clusterquota <name>`.
 
-- Default projects (`openshift-*`, `kube-*`, `default`) should **never** carry user quotas.
-- The Project Request Template (`project.config.openshift.io/cluster`) can ship
-  ResourceQuota + LimitRange into **every** new project automatically — the clean way
-  to make quotas default-on.
-- `oc describe quota` / `oc get quota` works identically to `kubectl`; CRQ is
-  `oc describe clusterquota`.
+### Scopes — quotas that apply only to matching pods
+
+| Scope | Selects pods that are… | Typical use |
+|---|---|---|
+| `BestEffort` | no requests/limits at all | `hard: pods: "0"` bans unbounded pods outright |
+| `NotBestEffort` | have ≥1 request/limit | Normal compute quotas |
+| `Terminating` | have `activeDeadlineSeconds` | Reserve room for jobs |
+| `NotTerminating` | long-running | Default workloads |
+| `PriorityClass` | listed `priorityClassName` | Bigger slice for prod than dev |
+
+### Full quota matrix
+
+| Bucket | Keys | Protects |
+|---|---|---|
+| Compute | `requests.cpu`, `requests.memory`, `limits.cpu`, `limits.memory` | Nodes |
+| Storage | `requests.storage`, `persistentvolumeclaims`, `<class>.storageclass.storage.k8s.io/requests.storage` | Nodes / storage |
+| Objects | `pods`, `services`, `services.loadbalancers`, `services.nodeports`, `secrets`, `configmaps`, `deployments.apps`, `jobs.batch`, `cronjobs.batch`, `count/<resource>.<group>` | etcd / API server |
 
 ---
 
-## 6. Reference Manifests
+## 12. Before Using ResourceQuota in Production
 
-Ready-to-apply files live in [`manifests/`](manifests/). Quick inline reference:
-
-### 6.1 Standard compute + object quota
-
-```yaml
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: app-quota
-  namespace: <target-namespace>
-spec:
-  hard:
-    requests.cpu: "4"
-    requests.memory: 8Gi
-    limits.cpu: "8"
-    limits.memory: 16Gi
-    pods: "20"
-    persistentvolumeclaims: "5"
-    requests.storage: 50Gi
-    services.loadbalancers: "0"      # no LBs in this namespace
-    services.nodeports: "0"
-```
-
-### 6.2 The LimitRange that makes quotas usable
-
-```yaml
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: app-limits
-  namespace: <target-namespace>
-spec:
-  limits:
-  - type: Container
-    default:                        # injected when pod omits limits
-      cpu: 500m
-      memory: 512Mi
-    defaultRequest:                 # injected when pod omits requests
-      cpu: 100m
-      memory: 128Mi
-    max:
-      cpu: "2"
-      memory: 2Gi
-    min:
-      cpu: 50m
-      memory: 64Mi
-```
-
-Without this, every developer pod lacking requests fails admission the moment the
-quota above exists.
+- [ ] Every user namespace gets **both** ResourceQuota *and* LimitRange (project template or GitOps).
+- [ ] `scopes: [BestEffort]` + `pods: "0"` — or LimitRange defaults — prevents unbounded pods.
+- [ ] Object-count quotas on `configmaps`, `secrets`, `services` — they protect etcd, not nodes.
+- [ ] `services.loadbalancers` / `nodeports` pinned to `0` where not needed.
+- [ ] ClusterResourceQuota for team pools; per-namespace ResourceQuota for hard walls.
+- [ ] Audit usage at `used / hard > 80%` — run [`scripts/quota-audit.sh`](scripts/quota-audit.sh).
+- [ ] Roll quota + limitrange + namespace via GitOps in one Application — quota *is* policy.
+- [ ] Remember `status.used` can lag ~5 min (`resource-quota-sync-period`).
 
 ---
 
-## 7. Troubleshooting — `exceeded quota` Decision Tree
+## 13. The Takeaway: Give Every Namespace a Budget
 
-```mermaid
-flowchart TD
-    E["create fails:<br/>exceeded quota"] --> D["oc describe quota -n &lt;ns&gt;<br/>compare hard vs used"]
-    D --> C{which resource hit?}
-    C -->|compute| C1["Σ pod requests too high?<br/>right-size requests OR<br/>request quota raise"]
-    C -->|pods count| C2["stale completed/failed pods?<br/>oc delete pods --field-selector=status.phase=Succeeded"]
-    C -->|storage/PVC| C3["orphaned/Released PVCs?<br/>see Issue 23 cleanup paths"]
-    C -->|object count| C4["object sprawl — clean up<br/>or raise count limit"]
-    C -->|nothing obvious| C5{"pod carries<br/>requests/limits?"}
-    C5 -->|NO| C5a["add LimitRange defaults<br/>(§6.2) — quota on compute<br/>requires every pod to declare"]
-    C5 -->|YES| C6{"status.used stuck?<br/>sync lag"}
-    C6 --> C6a["wait ≤ sync-period (default 5m)<br/>or bounce controller pod"]
-    C1 --> F["fix applied → re-create object"]
-    C2 & C3 & C4 & C5a & C6a --> F
-    style E fill:#8b1a1a,color:#fff
-    style F fill:#2f5d3f,color:#fff
-```
+The problem was never "too many pods" — it was the absence of a boundary on how much of the
+shared environment one namespace could consume. ResourceQuota introduces that boundary;
+LimitRange keeps individual workloads sane inside it.
 
-### Quick diagnosis commands
+Start with a namespace you know well, set a realistic budget, observe, and adjust from real
+usage — not guesses.
 
-```bash
-# which quotas exist + usage
-oc get quota -n <target-namespace>
-oc describe quota <quota-name> -n <target-namespace>   # hard vs used per resource
-
-# what exactly is consuming (the real request sum)
-oc get pods -n <target-namespace> -o json | \
-  jq '[.items[].spec.containers[].resources.requests // {}] | length'
-
-# find pods with NO requests (rejected as soon as compute quota exists)
-oc get pods -n <target-namespace> -o json | \
-  jq -r '.items[] | select([.spec.containers[].resources.requests.cpu] | any(. == null)) | .metadata.name'
-
-# cluster-wide view (all projects sharing a CRQ)
-oc describe clusterquota <crq-name>
-```
+> **Deployment broken? Check the quota first:** `oc describe quota -n <ns>` — the fix is often
+> right-sizing requests, cleanup, or an approved quota raise.
 
 ---
 
-## 8. Deployment via GitOps (ArgoCD)
-
-Quotas are governance — they belong in Git, not in tickets:
-
-```mermaid
-flowchart LR
-    PR["team raises PR:<br/>new namespace.yaml +<br/>quota.yaml + limitrange.yaml"] --> ARGO["ArgoCD / OpenShift GitOps<br/>syncs to cluster"]
-    ARGO --> NS["namespace + quota +<br/>limits + netpol + RBAC<br/>all created together"]
-    style ARGO fill:#2f5d3f,color:#fff
-```
-
-- Store quota + limitrange + namespace **in the same Application** so they're atomic.
-- Never apply a compute quota to a live namespace before its LimitRange exists —
-  existing Running pods are fine (admission only), but every **new** rollout fails
-  until pods carry requests.
-
----
-
-## 9. Best-Practice Checklist
-
-- [ ] Every user namespace gets **both** ResourceQuota *and* LimitRange (via project template or GitOps).
-- [ ] `scopes: [BestEffort]` + `pods: "0"` quota (or LimitRange defaults) prevents unbounded pods.
-- [ ] Object-count quotas (`configmaps`, `secrets`, `services`) set to sane ceilings — they protect etcd, not nodes.
-- [ ] `services.loadbalancers`/`nodeports` pinned to `0` where not needed.
-- [ ] ClusterResourceQuota for team-level pools; per-namespace ResourceQuota for hard walls.
-- [ ] Alert on `used / hard > 80%` — see [`scripts/quota-audit.sh`](scripts/quota-audit.sh).
-- [ ] Quota changes via PR with approval — quota *is* policy.
-
----
-
-## 10. Files in This Issue
+## Files in This Issue
 
 | File | Purpose |
 |---|---|
 | [`README.md`](README.md) | Issue summary + quick-fix table |
 | `ResourceQuota-Controls-Guide.md` | This document — full reference with diagrams |
-| [`ResourceQuota-Controls-Guide.html`](ResourceQuota-Controls-Guide.html) | Rendered standalone HTML version (visual diagrams) |
+| [`ResourceQuota-Controls-Guide.html`](ResourceQuota-Controls-Guide.html) | Rendered standalone HTML version (flat infographic diagrams) |
 | [`manifests/resourcequota-compute.yaml`](manifests/resourcequota-compute.yaml) | Standard compute+object quota |
 | [`manifests/limitrange-defaults.yaml`](manifests/limitrange-defaults.yaml) | Matching LimitRange defaults/min/max |
 | [`manifests/clusterresourcequota.yaml`](manifests/clusterresourcequota.yaml) | OCP multi-project quota example |
