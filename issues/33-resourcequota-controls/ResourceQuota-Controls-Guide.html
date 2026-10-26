@@ -4,157 +4,289 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ResourceQuota Controls — OpenShift Namespace Resource Governance</title>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
   :root{
-    --bg:#0f1419; --panel:#1a2230; --panel2:#222c3d; --line:#334155;
-    --text:#e2e8f0; --muted:#94a3b8; --accent:#ee2e24; --accent2:#3b82f6;
-    --ok:#22c55e; --warn:#eab308; --code:#0b0f14;
+    --bg:#faf9f6; --panel:#ffffff; --ink:#242424; --muted:#6b6b6b;
+    --line:#e6e2da; --accent:#ee2e24; --blue:#1a6fd4; --green:#1a8917;
+    --amber:#b7791f; --purple:#6b46c1; --teal:#0d7d74;
+    --code:#f6f4ef;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
-  header{background:linear-gradient(135deg,#8b1a1a,#ee2e24 55%,#f97316);padding:48px 24px;text-align:center}
-  header h1{margin:0;font-size:2rem;color:#fff}
-  header p{margin:8px 0 0;color:#ffe4d6;font-size:1.05rem}
-  .wrap{max-width:1000px;margin:0 auto;padding:24px 20px 80px}
-  nav.toc{position:sticky;top:0;background:rgba(15,20,25,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 20px;z-index:10;overflow-x:auto;white-space:nowrap}
-  nav.toc a{color:var(--accent2);text-decoration:none;margin-right:16px;font-size:.85rem}
+  body{margin:0;font-family:'Segoe UI',Georgia,system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.68;font-size:17px}
+  header{background:linear-gradient(135deg,#8b1a1a,#ee2e24 55%,#f97316);padding:56px 24px;text-align:center}
+  header h1{margin:0;font-size:2.2rem;color:#fff;letter-spacing:-.5px}
+  header p{margin:10px 0 0;color:#ffe4d6;font-size:1.05rem}
+  header .meta{font-size:.82rem;color:#ffd9c9;opacity:.85}
+  .wrap{max-width:860px;margin:0 auto;padding:20px 22px 80px}
+  nav.toc{position:sticky;top:0;background:rgba(250,249,246,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 22px;z-index:10;overflow-x:auto;white-space:nowrap}
+  nav.toc a{color:var(--blue);text-decoration:none;margin-right:16px;font-size:.85rem;font-weight:600}
   nav.toc a:hover{text-decoration:underline}
-  h2{margin-top:48px;padding-top:16px;border-top:2px solid var(--line);color:#fff;font-size:1.45rem}
-  h2 .num{color:var(--accent);margin-right:10px}
-  h3{color:#cbd5e1;margin-top:28px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0}
-  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem}
-  th{background:var(--panel2);color:#fff;text-align:left}
-  th,td{border:1px solid var(--line);padding:8px 10px;vertical-align:top}
-  code{background:var(--code);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-family:'Cascadia Code',Consolas,monospace;font-size:.85em;color:#f8b4b4}
-  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:.82rem}
-  pre code{border:none;padding:0;color:#d1e7ff}
-  .mermaid{background:#0d1117;border:1px solid var(--line);border-radius:10px;padding:18px;margin:18px 0;display:flex;justify-content:center}
-  .callout{border-left:4px solid var(--accent2);background:#1a2740;padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
-  .callout.warn{border-color:var(--warn);background:#2b2410}
-  .callout.danger{border-color:var(--accent);background:#2b1010}
-  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
-  .b-doc{background:#1a3a5c;color:#7cc4ff}
-  footer{border-top:1px solid var(--line);margin-top:60px;padding:24px 20px;text-align:center;color:var(--muted);font-size:.8rem}
-  ul.tight li{margin:4px 0}
+  h2{margin:56px 0 8px;padding-top:20px;border-top:2px solid var(--line);font-size:1.5rem;letter-spacing:-.3px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;font-size:.95rem;margin-right:10px;vertical-align:middle}
+  h3{color:#333;margin-top:30px;font-size:1.15rem}
+  p.lead{font-size:1.12rem;color:#3d3d3d}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.88rem;background:var(--panel)}
+  th{background:#f1ede4;text-align:left;font-weight:700}
+  th,td{border:1px solid var(--line);padding:9px 12px;vertical-align:top}
+  code{background:var(--code);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-family:'Cascadia Code',Consolas,monospace;font-size:.82em;color:#b3402f}
+  pre{background:#1e1e1e;border-radius:8px;padding:16px;overflow-x:auto;font-size:.82rem}
+  pre code{border:none;padding:0;color:#d4d4d4;background:transparent}
+  .diagram{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 16px;margin:22px 0;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+  .diagram svg{max-width:100%;height:auto;display:block;margin:0 auto}
+  .caption{font-size:.82rem;color:var(--muted);margin-top:10px;font-style:italic}
+  .callout{border-left:4px solid var(--blue);background:#eef5fd;padding:14px 18px;border-radius:0 8px 8px 0;margin:20px 0;font-size:.95rem}
+  .callout.warn{border-color:var(--amber);background:#fdf6e8}
+  .callout.danger{border-color:var(--accent);background:#fdf0ef}
+  .callout.ok{border-color:var(--green);background:#eef9ee}
+  .badge{display:inline-block;padding:3px 12px;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:#e8f0fb;color:var(--blue)}
+  ul.tight li{margin:5px 0}
+  footer{border-top:1px solid var(--line);margin-top:64px;padding:26px 20px;text-align:center;color:var(--muted);font-size:.8rem}
+  .k{font-weight:700}
 </style>
 </head>
 <body>
 
 <header>
   <h1>ResourceQuota Controls</h1>
-  <p>OpenShift Namespace Resource Governance — visual guide &amp; troubleshooting reference</p>
-  <p style="font-size:.85rem">lab.ocp.local &nbsp;·&nbsp; OCP 4.20.35 &nbsp;·&nbsp; OCP_Issue-Fix_RCA — Issue 33</p>
+  <p>OpenShift Namespace Resource Governance — a visual guide</p>
+  <p class="meta">lab.ocp.local · OCP 4.20.35 · OCP_Issue-Fix_RCA — Issue 33</p>
 </header>
 
 <nav class="toc">
-  <a href="#s1">1 · Why quotas</a>
-  <a href="#s2">2 · Governance stack</a>
-  <a href="#s3">3 · Enforcement flow</a>
-  <a href="#s4">4 · Quota matrix</a>
-  <a href="#s5">5 · OCP specifics</a>
-  <a href="#s6">6 · Manifests</a>
-  <a href="#s7">7 · Troubleshooting</a>
-  <a href="#s8">8 · GitOps</a>
-  <a href="#s9">9 · Checklist</a>
+  <a href="#s1">1 · The story</a>
+  <a href="#s2">2 · Quota = budget</a>
+  <a href="#s3">3 · The stack</a>
+  <a href="#s4">4 · Enforcement</a>
+  <a href="#s5">5 · What you can cap</a>
+  <a href="#s6">6 · OCP specifics</a>
+  <a href="#s7">7 · Manifests</a>
+  <a href="#s8">8 · Troubleshooting</a>
+  <a href="#s9">9 · GitOps</a>
+  <a href="#s10">10 · Checklist</a>
 </nav>
 
 <div class="wrap">
 
-<h2 id="s1"><span class="num">1</span>What ResourceQuota Is — and Why It Exists</h2>
-<p><span class="badge b-doc">Documented · reference guide</span></p>
-<p>A <strong>ResourceQuota</strong> is a namespace-scoped object that sets a <strong>hard ceiling</strong>
-on the resources a namespace may consume. On a shared cluster it is the <strong>bulkhead</strong> —
-one team can never consume so much CPU, memory, storage, or object count that it sinks the others.
-Enforcement happens at <strong>admission time</strong>, before the object is ever persisted.</p>
+<!-- ============ 1. STORY ============ -->
+<h2 id="s1"><span class="num">1</span>The Story: Three Teams, One Cluster</h2>
+<p><span class="badge">Documented · reference guide</span></p>
+<p class="lead">Imagine a cluster shared by three teams — <b>dev</b>, <b>qa</b>, and <b>data-eng</b>.
+Every pod looks reasonable on its own. Then one afternoon, data-eng launches a batch job that
+spins up dozens of pods. Nothing is "wrong" with any single pod — but together they eat the
+whole node pool, and dev + qa start timing out.</p>
 
-<div class="mermaid">
-flowchart TD
-    subgraph CLUSTER["Shared OCP Cluster — total capacity"]
-        NS1["ns team-a · 8 CPU / 16Gi"]
-        NS2["ns team-b · 4 CPU / 8Gi"]
-        NS3["ns batch · 2 CPU / 4Gi"]
-    end
-    X["noisy-neighbor workload<br/>tries to exceed quota"] -->|REJECTED at admission| NS3
+<div class="diagram">
+<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <!-- cluster -->
+  <rect x="10" y="12" width="740" height="276" rx="14" fill="#f4f1ea" stroke="#d8d2c4" stroke-width="1.5"/>
+  <text x="380" y="40" text-anchor="middle" font-size="15" font-weight="700" fill="#5c5648">SHARED CLUSTER — no quotas (first come, first served)</text>
+
+  <!-- dev ns -->
+  <rect x="34" y="62" width="216" height="200" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="142" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#1a6fd4">ns: dev</text>
+  <rect x="56" y="104" width="172" height="16" rx="8" fill="#cfe1f8"/>
+  <rect x="56" y="104" width="60" height="16" rx="8" fill="#1a6fd4"/>
+  <text x="142" y="146" text-anchor="middle" font-size="12" fill="#3d3d3d">CPU ~35% — starved by burst</text>
+  <text x="142" y="170" text-anchor="middle" font-size="22">⏳</text>
+  <text x="142" y="196" text-anchor="middle" font-size="12" fill="#b3402f" font-weight="600">latency alerts firing</text>
+  <text x="142" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">"why is dev slow?"</text>
+
+  <!-- qa ns -->
+  <rect x="272" y="62" width="216" height="200" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.6"/>
+  <text x="380" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#1a8917">ns: qa</text>
+  <rect x="294" y="104" width="172" height="16" rx="8" fill="#d5edd5"/>
+  <rect x="294" y="104" width="52" height="16" rx="8" fill="#1a8917"/>
+  <text x="380" y="146" text-anchor="middle" font-size="12" fill="#3d3d3d">CPU ~30% — also starved</text>
+  <text x="380" y="170" text-anchor="middle" font-size="22">⏳</text>
+  <text x="380" y="196" text-anchor="middle" font-size="12" fill="#b3402f" font-weight="600">test runs stalling</text>
+  <text x="380" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">"cluster feels broken"</text>
+
+  <!-- data-eng ns -->
+  <rect x="510" y="62" width="216" height="200" rx="10" fill="#fdf0ef" stroke="#ee2e24" stroke-width="2"/>
+  <text x="618" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#ee2e24">ns: data-eng</text>
+  <rect x="532" y="104" width="172" height="16" rx="8" fill="#f8d8d4"/>
+  <rect x="532" y="104" width="172" height="16" rx="8" fill="#ee2e24"/>
+  <text x="618" y="146" text-anchor="middle" font-size="12" fill="#3d3d3d">CPU ~95% — batch burst</text>
+  <text x="618" y="170" text-anchor="middle" font-size="22">🔥</text>
+  <text x="618" y="196" text-anchor="middle" font-size="12" fill="#8b1a1a" font-weight="700">dozens of new pods</text>
+  <text x="618" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">"works great for us!"</text>
+</svg>
+<div class="caption">Every pod is reasonable. Together, one team's burst starves everyone else. There is no wall between them.</div>
 </div>
 
-<h2 id="s2"><span class="num">2</span>The Governance Stack — How the Pieces Fit</h2>
-<p>ResourceQuota never works alone — the complete model has four layers:</p>
+<!-- ============ 2. QUOTA = BUDGET ============ -->
+<h2 id="s2"><span class="num">2</span>ResourceQuota = A Budget Per Namespace</h2>
+<p class="lead">A <b>ResourceQuota</b> gives each namespace a <b>hard ceiling</b> — like a department
+budget. Requests are counted against it the moment a pod is <i>created</i>, not while it runs.
+Hit the ceiling and the API server simply says <b>no</b>.</p>
 
-<div class="mermaid">
-flowchart TB
-    CRQ["ClusterResourceQuota<br/>OCP only — one pool across MANY namespaces"]
-    RQ["ResourceQuota<br/>namespace ceiling — requests, limits, counts, storage"]
-    LR["LimitRange<br/>per-object defaults &amp; min/max"]
-    POD["Pod spec requests/limits<br/>(what the quota counts)"]
-    CRQ -->|aggregates by label selector| RQ
-    RQ -->|reject if used + new &gt; hard| POD
-    LR -->|injects defaults| POD
-    POD -->|must declare requests<br/>once compute quota exists| RQ
+<div class="diagram">
+<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <rect x="10" y="12" width="740" height="276" rx="14" fill="#f4f1ea" stroke="#d8d2c4" stroke-width="1.5"/>
+  <text x="380" y="40" text-anchor="middle" font-size="15" font-weight="700" fill="#5c5648">SHARED CLUSTER — each namespace has its own budget</text>
+
+  <!-- dev -->
+  <rect x="34" y="62" width="216" height="200" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="142" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#1a6fd4">ns: dev · budget 8 CPU</text>
+  <rect x="56" y="110" width="172" height="20" rx="10" fill="#cfe1f8"/>
+  <rect x="56" y="110" width="103" height="20" rx="10" fill="#1a6fd4"/>
+  <text x="142" y="125" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">60% used</text>
+  <text x="142" y="162" text-anchor="middle" font-size="12" fill="#3d3d3d">headroom for growth</text>
+  <text x="142" y="196" text-anchor="middle" font-size="20">✅</text>
+  <text x="142" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">unbothered by neighbors</text>
+
+  <!-- qa -->
+  <rect x="272" y="62" width="216" height="200" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.6"/>
+  <text x="380" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#1a8917">ns: qa · budget 4 CPU</text>
+  <rect x="294" y="110" width="172" height="20" rx="10" fill="#d5edd5"/>
+  <rect x="294" y="110" width="69" height="20" rx="10" fill="#1a8917"/>
+  <text x="380" y="125" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">40% used</text>
+  <text x="380" y="162" text-anchor="middle" font-size="12" fill="#3d3d3d">tests keep running</text>
+  <text x="380" y="196" text-anchor="middle" font-size="20">✅</text>
+  <text x="380" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">isolated by the wall</text>
+
+  <!-- data-eng -->
+  <rect x="510" y="62" width="216" height="200" rx="10" fill="#fdf0ef" stroke="#ee2e24" stroke-width="1.6"/>
+  <text x="618" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#ee2e24">ns: data-eng · budget 2 CPU</text>
+  <rect x="532" y="110" width="172" height="20" rx="10" fill="#f8d8d4"/>
+  <rect x="532" y="110" width="172" height="20" rx="10" fill="#ee2e24"/>
+  <text x="618" y="125" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">100% used — capped</text>
+  <text x="618" y="162" text-anchor="middle" font-size="12" fill="#3d3d3d">next pod → 403 exceeded quota</text>
+  <text x="618" y="196" text-anchor="middle" font-size="20">🛑</text>
+  <text x="618" y="240" text-anchor="middle" font-size="12" fill="#6b6b6b">burst stopped at its own wall</text>
+</svg>
+<div class="caption">Same burst, different outcome — the batch job can only spend its own budget. It fails fast, inside its own namespace.</div>
 </div>
+
+<div class="callout">Quota counts <b>requests</b> (and limits) — the pod's reservation, not real
+usage. A pod requesting 1 CPU counts 1 CPU even while idling at 10m.</div>
+
+<!-- ============ 3. THE STACK ============ -->
+<h2 id="s3"><span class="num">3</span>The Governance Stack — Four Layers</h2>
+<p class="lead">ResourceQuota never works alone. Think of it as four layers, each answering one question:</p>
+
+<div class="diagram">
+<svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <!-- layer cards, widest at bottom -->
+  <g>
+    <rect x="90" y="18" width="580" height="62" rx="10" fill="#e9e4f8" stroke="#6b46c1" stroke-width="1.6"/>
+    <text x="120" y="44" font-size="14" font-weight="700" fill="#6b46c1">ClusterResourceQuota</text>
+    <text x="120" y="64" font-size="12" fill="#5a4a8c">OCP only — "how much can this TEAM spend across all its projects?"</text>
+  </g>
+  <g>
+    <rect x="110" y="94" width="540" height="62" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+    <text x="140" y="120" font-size="14" font-weight="700" fill="#1a6fd4">ResourceQuota</text>
+    <text x="140" y="140" font-size="12" fill="#2f5a8c">"what is the ceiling for THIS namespace?" — Σ requests, counts, storage</text>
+  </g>
+  <g>
+    <rect x="130" y="170" width="500" height="62" rx="10" fill="#fdf6e8" stroke="#b7791f" stroke-width="1.6"/>
+    <text x="160" y="196" font-size="14" font-weight="700" fill="#b7791f">LimitRange</text>
+    <text x="160" y="216" font-size="12" fill="#8a6420">"what defaults/min/max does EACH pod get?" — injects missing requests</text>
+  </g>
+  <g>
+    <rect x="150" y="246" width="460" height="62" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.6"/>
+    <text x="180" y="272" font-size="14" font-weight="700" fill="#1a8917">Pod requests / limits</text>
+    <text x="180" y="292" font-size="12" fill="#2f6b2f">the units everything above counts — the reservation, not real usage</text>
+  </g>
+  <!-- arrows down -->
+  <text x="380" y="90" text-anchor="middle" font-size="14" fill="#6b6b6b">▼</text>
+  <text x="380" y="166" text-anchor="middle" font-size="14" fill="#6b6b6b">▼</text>
+  <text x="380" y="242" text-anchor="middle" font-size="14" fill="#6b6b6b">▼</text>
+</svg>
+<div class="caption">Top-down: a team pool spans many projects → a wall per namespace → defaults per pod → the numbers actually counted.</div>
+</div>
+
+<div class="callout warn"><b>The critical interaction:</b> once a compute quota
+(<code>requests.cpu</code> / <code>requests.memory</code>) exists, every new pod must declare
+those values or admission rejects it. The LimitRange is what injects defaults so developer
+pods don't fail en-masse.</div>
 
 <table>
   <tr><th>Layer</th><th>Scope</th><th>Purpose</th></tr>
   <tr><td><b>ClusterResourceQuota</b></td><td>Many namespaces (label selector)</td><td>OCP-only. A team-level pool spanning dev/test/qa projects</td></tr>
   <tr><td><b>ResourceQuota</b></td><td>One namespace</td><td>Hard ceiling on Σ requests, Σ limits, storage, object counts</td></tr>
-  <tr><td><b>LimitRange</b></td><td>One namespace</td><td>Per-container defaults/min/max — makes quota enforcement usable</td></tr>
+  <tr><td><b>LimitRange</b></td><td>One namespace</td><td>Per-container defaults / min / max — makes quota usable</td></tr>
   <tr><td><b>requests/limits</b></td><td>Each container</td><td>The units the quota counts</td></tr>
 </table>
 
-<div class="callout warn"><strong>Critical interaction:</strong> once a compute quota
-(<code>requests.cpu</code>/<code>requests.memory</code>) exists, every new pod must declare those
-values or it is rejected. A LimitRange with defaults is what keeps developer pods from failing
-en-masse.</div>
+<!-- ============ 4. ENFORCEMENT ============ -->
+<h2 id="s4"><span class="num">4</span>Where the Rejection Happens</h2>
+<p class="lead">Quota is checked by the <b>API-server admission controller</b> — before the object
+is ever stored. Not by the scheduler, not by the kubelet. Rejection is instant and atomic:
+the pod never exists, even partially.</p>
 
-<h2 id="s3"><span class="num">3</span>Enforcement — Where the Rejection Happens</h2>
-<p>Quota is enforced by the <strong>API-server admission controller</strong> — not the scheduler or kubelet.
-<code>status.used</code> is a cache refreshed asynchronously (<code>resource-quota-sync-period</code>, default 5m).</p>
+<div class="diagram">
+<svg viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <!-- pipeline -->
+  <rect x="20" y="80" width="130" height="70" rx="10" fill="#f4f1ea" stroke="#8a8578" stroke-width="1.5"/>
+  <text x="85" y="108" text-anchor="middle" font-size="13" font-weight="700" fill="#4a463c">User / CI</text>
+  <text x="85" y="128" text-anchor="middle" font-size="11" fill="#6b6b6b">create pod</text>
 
-<div class="mermaid">
-sequenceDiagram
-    participant U as User / CI / ArgoCD
-    participant A as API Server admission
-    participant Q as ResourceQuota plugin
-    participant E as etcd
-    U->>A: create Pod / PVC / Service
-    A->>Q: check namespace quotas
-    Q->>Q: used + requested ≤ hard?
-    alt Within quota
-        Q-->>A: ALLOW
-        A->>E: persist object
-        A-->>U: 201 Created
-    else Exceeds quota
-        Q-->>A: DENY
-        A-->>U: 403 exceeded quota
-    end
+  <line x1="150" y1="115" x2="185" y2="115" stroke="#8a8578" stroke-width="2"/>
+  <polygon points="185,110 195,115 185,120" fill="#8a8578"/>
+
+  <rect x="195" y="80" width="140" height="70" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.5"/>
+  <text x="265" y="108" text-anchor="middle" font-size="13" font-weight="700" fill="#1a6fd4">API Server</text>
+  <text x="265" y="128" text-anchor="middle" font-size="11" fill="#6b6b6b">admission chain</text>
+
+  <line x1="335" y1="115" x2="370" y2="115" stroke="#8a8578" stroke-width="2"/>
+  <polygon points="370,110 380,115 370,120" fill="#8a8578"/>
+
+  <!-- decision diamond -->
+  <polygon points="460,60 540,115 460,170 380,115" fill="#fdf6e8" stroke="#b7791f" stroke-width="1.8"/>
+  <text x="460" y="108" text-anchor="middle" font-size="12" font-weight="700" fill="#8a6420">quota check</text>
+  <text x="460" y="126" text-anchor="middle" font-size="10" fill="#8a6420">used + new ≤ hard?</text>
+
+  <!-- allow branch -->
+  <line x1="540" y1="105" x2="600" y2="55" stroke="#1a8917" stroke-width="2"/>
+  <polygon points="598,50 610,50 605,62" fill="#1a8917"/>
+  <rect x="605" y="18" width="140" height="56" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.8"/>
+  <text x="675" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#1a8917">✓ ALLOW</text>
+  <text x="675" y="60" text-anchor="middle" font-size="11" fill="#2f6b2f">persist to etcd</text>
+
+  <!-- deny branch -->
+  <line x1="540" y1="125" x2="600" y2="175" stroke="#ee2e24" stroke-width="2"/>
+  <polygon points="605,168 610,180 598,180" fill="#ee2e24"/>
+  <rect x="605" y="160" width="140" height="56" rx="10" fill="#fdf0ef" stroke="#ee2e24" stroke-width="1.8"/>
+  <text x="675" y="184" text-anchor="middle" font-size="13" font-weight="700" fill="#ee2e24">✗ DENY</text>
+  <text x="675" y="202" text-anchor="middle" font-size="11" fill="#8b1a1a">403 exceeded quota</text>
+</svg>
+<div class="caption">Fail-fast at admission: the failure is a 403 error at create time — never a Pending pod waiting for capacity.</div>
 </div>
 
 <ul class="tight">
-  <li>Failures surface as <code>403 Forbidden … exceeded quota</code> — <b>not</b> as Pending pods.</li>
-  <li>Quota counts <b>requests</b> (and limits), never real usage.</li>
-  <li><code>status.used</code> can lag real objects by up to the sync period.</li>
+  <li>Failures surface as <code>403 Forbidden … exceeded quota</code> — <b>not</b> Pending pods.</li>
+  <li><code>status.used</code> is a cache refreshed asynchronously (<code>resource-quota-sync-period</code>, default ~5 min) — freshly deleted pods can still count briefly.</li>
+  <li>The object is never partially created — admission is atomic.</li>
 </ul>
 
-<h2 id="s4"><span class="num">4</span>What Can Be Quota'd</h2>
-<h3>Compute &amp; storage</h3>
-<table>
-  <tr><th>Quota key</th><th>Counts</th><th>Notes</th></tr>
-  <tr><td><code>requests.cpu</code> / <code>requests.memory</code></td><td>Σ pod requests</td><td>Primary scheduling contract</td></tr>
-  <tr><td><code>limits.cpu</code> / <code>limits.memory</code></td><td>Σ pod limits</td><td>Cap the cap</td></tr>
-  <tr><td><code>requests.storage</code></td><td>Σ PVC sizes</td><td>All StorageClasses combined</td></tr>
-  <tr><td><code>&lt;class&gt;.storageclass.storage.k8s.io/requests.storage</code></td><td>Σ PVC size per class</td><td>Per-StorageClass control</td></tr>
-  <tr><td><code>persistentvolumeclaims</code></td><td>PVC count</td><td>Prevent claim sprawl</td></tr>
-</table>
-<h3>Object counts (protect the control plane, not the nodes)</h3>
-<table>
-  <tr><th>Quota key</th><th>Protects against</th></tr>
-  <tr><td><code>pods</code></td><td>Pod flood</td></tr>
-  <tr><td><code>services</code>, <code>services.loadbalancers</code>, <code>services.nodeports</code></td><td>Service / LB sprawl</td></tr>
-  <tr><td><code>secrets</code>, <code>configmaps</code></td><td>etcd bloat</td></tr>
-  <tr><td><code>count/&lt;resource&gt;.&lt;group&gt;</code></td><td><b>Any</b> resource incl. CRDs — e.g. <code>count/routes.route.openshift.io: "10"</code></td></tr>
-</table>
-<h3>Scopes — quota that only applies to matching pods</h3>
+<!-- ============ 5. WHAT CAN BE QUOTA'D ============ -->
+<h2 id="s5"><span class="num">5</span>What You Can Cap — Two Buckets</h2>
+<p class="lead">Quotas split into two families: <b>compute/storage</b> (protects the nodes) and
+<b>object counts</b> (protects the API server and etcd).</p>
+
+<div class="diagram">
+<svg viewBox="0 0 760 190" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <rect x="20" y="14" width="350" height="162" rx="12" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="195" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1a6fd4">Compute &amp; Storage — protects NODES</text>
+  <text x="44" y="72" font-size="12" fill="#2f5a8c">requests.cpu · requests.memory</text>
+  <text x="44" y="94" font-size="12" fill="#2f5a8c">limits.cpu · limits.memory</text>
+  <text x="44" y="116" font-size="12" fill="#2f5a8c">requests.storage · persistentvolumeclaims</text>
+  <text x="44" y="138" font-size="12" fill="#2f5a8c">&lt;class&gt;.storageclass…/requests.storage</text>
+  <text x="44" y="162" font-size="11" font-style="italic" fill="#6b6b6b">"how much resource may this ns reserve?"</text>
+
+  <rect x="390" y="14" width="350" height="162" rx="12" fill="#f3edf9" stroke="#6b46c1" stroke-width="1.6"/>
+  <text x="565" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#6b46c1">Object Counts — protects CONTROL PLANE</text>
+  <text x="414" y="72" font-size="12" fill="#5a4a8c">pods · services · secrets · configmaps</text>
+  <text x="414" y="94" font-size="12" fill="#5a4a8c">services.loadbalancers · services.nodeports</text>
+  <text x="414" y="116" font-size="12" fill="#5a4a8c">deployments · statefulsets · jobs · cronjobs</text>
+  <text x="414" y="138" font-size="12" fill="#5a4a8c">count/&lt;resource&gt;.&lt;group&gt; → any CRD, routes…</text>
+  <text x="414" y="162" font-size="11" font-style="italic" fill="#6b6b6b">"how many objects may exist in etcd?"</text>
+</svg>
+<div class="caption">Left: the workloads' footprint. Right: etcd/API-server protection — object sprawl is a real outage source.</div>
+</div>
+
+<h3>Scopes — quotas that apply only to matching pods</h3>
 <table>
   <tr><th>Scope</th><th>Selects pods that are…</th><th>Typical use</th></tr>
   <tr><td><code>BestEffort</code></td><td>no requests/limits at all</td><td><code>hard: pods: "0"</code> bans unbounded pods outright</td></tr>
@@ -163,37 +295,94 @@ sequenceDiagram
   <tr><td><code>PriorityClass</code></td><td>listed priorityClassName</td><td>Bigger slice for prod than dev</td></tr>
 </table>
 
-<div class="mermaid">
-flowchart LR
-    NP["new pod"] --> NP1{priority class?}
-    NP1 -->|prod-high| QP["quota prod-pods<br/>10 CPU"]
-    NP1 -->|dev-low| QD["quota dev-pods<br/>4 CPU"]
-    NP1 -->|no requests| QB["quota no-unlimited<br/>BestEffort pods=0"]
-    QB --> RJ["REJECTED — BestEffort banned"]
+<div class="diagram">
+<svg viewBox="0 0 760 210" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <text x="380" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#5c5648">One namespace — three scoped quotas sorting incoming pods</text>
+  <rect x="30" y="70" width="110" height="60" rx="10" fill="#f4f1ea" stroke="#8a8578" stroke-width="1.5"/>
+  <text x="85" y="95" text-anchor="middle" font-size="13" font-weight="700" fill="#4a463c">new pod</text>
+  <text x="85" y="115" text-anchor="middle" font-size="10" fill="#6b6b6b">arrives in ns</text>
+
+  <line x1="140" y1="100" x2="190" y2="55" stroke="#1a8917" stroke-width="1.8"/>
+  <line x1="140" y1="100" x2="190" y2="100" stroke="#1a6fd4" stroke-width="1.8"/>
+  <line x1="140" y1="100" x2="190" y2="145" stroke="#ee2e24" stroke-width="1.8"/>
+
+  <rect x="195" y="25" width="250" height="52" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.6"/>
+  <text x="320" y="46" text-anchor="middle" font-size="12" font-weight="700" fill="#1a8917">priorityClass = prod-high</text>
+  <text x="320" y="64" text-anchor="middle" font-size="11" fill="#2f6b2f">prod quota — 10 CPU</text>
+
+  <rect x="195" y="85" width="250" height="52" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="320" y="106" text-anchor="middle" font-size="12" font-weight="700" fill="#1a6fd4">priorityClass = dev-low</text>
+  <text x="320" y="124" text-anchor="middle" font-size="11" fill="#2f5a8c">dev quota — 4 CPU</text>
+
+  <rect x="195" y="145" width="250" height="52" rx="10" fill="#fdf0ef" stroke="#ee2e24" stroke-width="1.6"/>
+  <text x="320" y="166" text-anchor="middle" font-size="12" font-weight="700" fill="#ee2e24">no requests (BestEffort)</text>
+  <text x="320" y="184" text-anchor="middle" font-size="11" fill="#8b1a1a">scope quota — pods: 0 → REJECTED</text>
+
+  <rect x="480" y="55" width="250" height="100" rx="12" fill="#f4f1ea" stroke="#d8d2c4" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="605" y="95" text-anchor="middle" font-size="13" font-weight="700" fill="#5c5648">same namespace</text>
+  <text x="605" y="118" text-anchor="middle" font-size="11" fill="#6b6b6b">each pod counts against</text>
+  <text x="605" y="136" text-anchor="middle" font-size="11" fill="#6b6b6b">the quota its scope matches</text>
+</svg>
+<div class="caption">Scopes let one namespace run multiple budgets — prod vs dev vs "no unlimited pods".</div>
 </div>
 
-<h2 id="s5"><span class="num">5</span>OpenShift-Specific Mechanics</h2>
-<h3>ClusterResourceQuota — one pool, many projects</h3>
-<div class="mermaid">
-flowchart TB
-    CRQ["ClusterResourceQuota: team-a-aggregate<br/>hard: 12 CPU / 24Gi / 60 pods"]
-    N1["project shop-dev · team=a"]
-    N2["project shop-test · team=a"]
-    N3["project shop-qa · team=a"]
-    N4["project other · team=b"]
-    N1 & N2 & N3 -->|share the single pool| CRQ
-    N4 -.->|not selected| CRQ
+<!-- ============ 6. OCP ============ -->
+<h2 id="s6"><span class="num">6</span>OpenShift Specifics — ClusterResourceQuota</h2>
+<p class="lead">Regular ResourceQuota is per-namespace. OCP adds <b>ClusterResourceQuota</b> (CRQ):
+one shared pool across <i>many</i> projects, selected by label — perfect for "team A gets 12 CPU
+across dev, test and qa."</p>
+
+<div class="diagram">
+<svg viewBox="0 0 760 260" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <!-- three projects on the left -->
+  <rect x="30" y="30" width="200" height="56" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="130" y="54" text-anchor="middle" font-size="13" font-weight="700" fill="#1a6fd4">project: shop-dev</text>
+  <text x="130" y="72" text-anchor="middle" font-size="11" fill="#2f5a8c">label team=a</text>
+
+  <rect x="30" y="102" width="200" height="56" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="130" y="126" text-anchor="middle" font-size="13" font-weight="700" fill="#1a6fd4">project: shop-test</text>
+  <text x="130" y="144" text-anchor="middle" font-size="11" fill="#2f5a8c">label team=a</text>
+
+  <rect x="30" y="174" width="200" height="56" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="130" y="198" text-anchor="middle" font-size="13" font-weight="700" fill="#1a6fd4">project: shop-qa</text>
+  <text x="130" y="216" text-anchor="middle" font-size="11" fill="#2f5a8c">label team=a</text>
+
+  <!-- arrows into pool -->
+  <line x1="230" y1="58" x2="430" y2="105" stroke="#6b46c1" stroke-width="2"/>
+  <line x1="230" y1="130" x2="430" y2="122" stroke="#6b46c1" stroke-width="2"/>
+  <line x1="230" y1="202" x2="430" y2="139" stroke="#6b46c1" stroke-width="2"/>
+
+  <!-- pool -->
+  <circle cx="540" cy="130" r="105" fill="#e9e4f8" stroke="#6b46c1" stroke-width="2.4"/>
+  <text x="540" y="105" text-anchor="middle" font-size="13" font-weight="700" fill="#6b46c1">ClusterResourceQuota</text>
+  <text x="540" y="125" text-anchor="middle" font-size="12" fill="#5a4a8c">team-a-aggregate</text>
+  <text x="540" y="148" text-anchor="middle" font-size="11" fill="#5a4a8c">12 CPU · 24Gi · 60 pods</text>
+  <text x="540" y="166" text-anchor="middle" font-size="10" font-style="italic" fill="#8a7ab8">ONE pool, shared by all 3</text>
+
+  <!-- non-member project -->
+  <rect x="30" y="240" width="200" height="0" rx="0" fill="none"/>
+  <rect x="510" y="240" width="0" height="0" fill="none"/>
+  <rect x="30" y="240" width="200" height="0"/>
+</svg>
+<svg viewBox="0 0 760 60" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <rect x="30" y="6" width="200" height="46" rx="10" fill="#f4f1ea" stroke="#b8b2a4" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <text x="130" y="28" text-anchor="middle" font-size="12" font-weight="700" fill="#6b6b6b">project: other · team=b</text>
+  <text x="130" y="45" text-anchor="middle" font-size="10" fill="#8a8578">not selected — unaffected</text>
+  <line x1="230" y1="29" x2="430" y2="29" stroke="#b8b2a4" stroke-width="1.4" stroke-dasharray="5 4"/>
+</svg>
+<div class="caption">Selection is by namespace label (<code>spec.selector.labels</code>) or the <code>openshift.io/quota</code> annotation. Usage syncs slowly by design — plan buffer.</div>
 </div>
+
 <ul class="tight">
-  <li>Selected via namespace labels (<code>spec.selector.labels</code>) or the
-      <code>openshift.io/quota: &lt;name&gt;</code> annotation.</li>
-  <li>CRQ usage syncs <b>slowly by design</b> (~minutes) — not for instantaneous enforcement.</li>
-  <li>A namespace can be selected by only <b>one</b> CRQ.</li>
-  <li>Never put user quotas on <code>openshift-*</code> / <code>kube-*</code> / <code>default</code>.</li>
-  <li>The Project Request Template can inject quota+limitrange into <b>every</b> new project — the clean way to make quotas default-on.</li>
+  <li>A namespace may be selected by only <b>one</b> CRQ.</li>
+  <li>Never put user quotas on <code>openshift-*</code>, <code>kube-*</code>, <code>default</code>.</li>
+  <li>The <b>Project Request Template</b> can inject quota + limitrange into <i>every</i> new project — the clean way to make quotas default-on.</li>
+  <li>Inspect with <code>oc describe clusterquota &lt;name&gt;</code>.</li>
 </ul>
 
-<h2 id="s6"><span class="num">6</span>Reference Manifests</h2>
+<!-- ============ 7. MANIFESTS ============ -->
+<h2 id="s7"><span class="num">7</span>Reference Manifests</h2>
+
 <h3>Standard compute + object quota</h3>
 <pre><code>apiVersion: v1
 kind: ResourceQuota
@@ -209,7 +398,7 @@ spec:
     pods: "20"
     persistentvolumeclaims: "5"
     requests.storage: 50Gi
-    services.loadbalancers: "0"
+    services.loadbalancers: "0"   # no LBs here
     services.nodeports: "0"</code></pre>
 
 <h3>The LimitRange that makes quotas usable</h3>
@@ -225,23 +414,100 @@ spec:
     defaultRequest: { cpu: 100m, memory: 128Mi }   # injected when pod omits requests
     max:            { cpu: "2",  memory: 2Gi }
     min:            { cpu: 50m,  memory: 64Mi }</code></pre>
-<div class="callout danger">Without this LimitRange, every pod lacking requests fails admission
-the moment the compute quota exists.</div>
 
-<h2 id="s7"><span class="num">7</span>Troubleshooting — <code>exceeded quota</code> Decision Tree</h2>
-<div class="mermaid">
-flowchart TD
-    E["create fails: exceeded quota"] --> D["oc describe quota -n ns<br/>compare hard vs used"]
-    D --> C{which resource hit?}
-    C -->|compute| C1["right-size requests OR<br/>request quota raise"]
-    C -->|pods count| C2["delete stale Succeeded pods"]
-    C -->|storage/PVC| C3["clean orphaned/Released PVCs"]
-    C -->|object count| C4["clean sprawl or raise limit"]
-    C -->|nothing obvious| C5{"pod has requests/limits?"}
-    C5 -->|NO| C5a["add LimitRange defaults"]
-    C5 -->|YES| C6{"status.used lagging?"}
-    C6 --> C6a["wait ≤ sync-period (5m default)"]
-    C1 & C2 & C3 & C4 & C5a & C6a --> F["re-create object"]
+<div class="diagram">
+<svg viewBox="0 0 760 190" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <text x="380" y="24" text-anchor="middle" font-size="14" font-weight="700" fill="#5c5648">Why the LimitRange matters — two pods, same quota</text>
+
+  <!-- pod without requests -->
+  <rect x="40" y="52" width="200" height="110" rx="10" fill="#fdf0ef" stroke="#ee2e24" stroke-width="1.8"/>
+  <text x="140" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#ee2e24">Pod A — no requests</text>
+  <text x="140" y="106" text-anchor="middle" font-size="11" fill="#8b1a1a">quota can't count it</text>
+  <text x="140" y="132" text-anchor="middle" font-size="13" font-weight="700" fill="#8b1a1a">✗ REJECTED</text>
+  <text x="140" y="152" text-anchor="middle" font-size="10" fill="#6b6b6b">…unless LimitRange injects defaults</text>
+
+  <!-- limitrange arrow -->
+  <line x1="245" y1="107" x2="300" y2="107" stroke="#b7791f" stroke-width="2"/>
+  <polygon points="300,101 312,107 300,113" fill="#b7791f"/>
+  <text x="278" y="92" text-anchor="middle" font-size="10" fill="#b7791f" font-weight="700">LimitRange</text>
+  <text x="278" y="126" text-anchor="middle" font-size="10" fill="#b7791f" font-weight="700">defaults</text>
+
+  <!-- pod with requests -->
+  <rect x="315" y="52" width="200" height="110" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.8"/>
+  <text x="415" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#1a8917">Pod B — requests set</text>
+  <text x="415" y="106" text-anchor="middle" font-size="11" fill="#2f6b2f">counts 100m / 128Mi against quota</text>
+  <text x="415" y="132" text-anchor="middle" font-size="13" font-weight="700" fill="#1a8917">✓ ADMITTED</text>
+  <text x="415" y="152" text-anchor="middle" font-size="10" fill="#6b6b6b">fits under the ceiling</text>
+
+  <!-- quota meter -->
+  <rect x="548" y="52" width="180" height="110" rx="10" fill="#f4f1ea" stroke="#8a8578" stroke-width="1.5"/>
+  <text x="638" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#4a463c">quota meter</text>
+  <rect x="568" y="92" width="140" height="18" rx="9" fill="#ddd8cc"/>
+  <rect x="568" y="92" width="60" height="18" rx="9" fill="#1a8917"/>
+  <text x="638" y="134" text-anchor="middle" font-size="11" fill="#6b6b6b">used grows only</text>
+  <text x="638" y="150" text-anchor="middle" font-size="11" fill="#6b6b6b">with admitted pods</text>
+</svg>
+<div class="caption">With a compute quota present, undeclared requests = instant rejection. LimitRange defaults turn Pod A into Pod B automatically.</div>
+</div>
+
+<!-- ============ 8. TROUBLESHOOTING ============ -->
+<h2 id="s8"><span class="num">8</span>Troubleshooting — <code>exceeded quota</code></h2>
+<p class="lead">First command is always <code>oc describe quota -n &lt;ns&gt;</code> — it prints
+<code>hard</code> vs <code>used</code> per resource. Then walk the tree:</p>
+
+<div class="diagram">
+<svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <!-- start -->
+  <rect x="250" y="14" width="260" height="48" rx="24" fill="#fdf0ef" stroke="#ee2e24" stroke-width="2"/>
+  <text x="380" y="35" text-anchor="middle" font-size="13" font-weight="700" fill="#8b1a1a">403 — exceeded quota</text>
+  <text x="380" y="52" text-anchor="middle" font-size="10" fill="#b3402f">pod/deployment create fails</text>
+
+  <line x1="380" y1="62" x2="380" y2="80" stroke="#8a8578" stroke-width="2"/>
+  <polygon points="380,92 374,80 386,80" fill="#8a8578"/>
+
+  <!-- describe -->
+  <rect x="235" y="94" width="290" height="46" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="380" y="114" text-anchor="middle" font-size="12" font-weight="700" fill="#1a6fd4">oc describe quota -n &lt;ns&gt;</text>
+  <text x="380" y="130" text-anchor="middle" font-size="10" fill="#2f5a8c">which resource shows used ≈ hard?</text>
+
+  <!-- branch lines -->
+  <line x1="300" y1="140" x2="120" y2="172" stroke="#8a8578" stroke-width="1.6"/>
+  <line x1="360" y1="140" x2="310" y2="172" stroke="#8a8578" stroke-width="1.6"/>
+  <line x1="420" y1="140" x2="500" y2="172" stroke="#8a8578" stroke-width="1.6"/>
+  <line x1="460" y1="140" x2="660" y2="172" stroke="#8a8578" stroke-width="1.6"/>
+
+  <!-- four branches -->
+  <rect x="30" y="174" width="160" height="64" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.5"/>
+  <text x="110" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#1a8917">compute hit</text>
+  <text x="110" y="214" text-anchor="middle" font-size="10" fill="#2f6b2f">right-size requests or</text>
+  <text x="110" y="228" text-anchor="middle" font-size="10" fill="#2f6b2f">raise quota (approval)</text>
+
+  <rect x="205" y="174" width="160" height="64" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.5"/>
+  <text x="285" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#1a8917">pods count hit</text>
+  <text x="285" y="214" text-anchor="middle" font-size="10" fill="#2f6b2f">delete stale Succeeded /</text>
+  <text x="285" y="228" text-anchor="middle" font-size="10" fill="#2f6b2f">Failed pods</text>
+
+  <rect x="380" y="174" width="160" height="64" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.5"/>
+  <text x="460" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#1a8917">storage / PVC hit</text>
+  <text x="460" y="214" text-anchor="middle" font-size="10" fill="#2f6b2f">clean orphaned +</text>
+  <text x="460" y="228" text-anchor="middle" font-size="10" fill="#2f6b2f">Released PVCs (issue 23)</text>
+
+  <rect x="555" y="174" width="180" height="64" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.5"/>
+  <text x="645" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#1a8917">object-count hit</text>
+  <text x="645" y="214" text-anchor="middle" font-size="10" fill="#2f6b2f">clean sprawl or raise</text>
+  <text x="645" y="228" text-anchor="middle" font-size="10" fill="#2f6b2f">the count ceiling</text>
+
+  <!-- second row: the subtle cases -->
+  <line x1="380" y1="140" x2="380" y2="250" stroke="#b7791f" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <rect x="230" y="252" width="300" height="34" rx="10" fill="#fdf6e8" stroke="#b7791f" stroke-width="1.5"/>
+  <text x="380" y="274" text-anchor="middle" font-size="11" font-weight="700" fill="#8a6420">nothing near its cap? two sneaky causes ↓</text>
+
+  <rect x="60" y="296" width="300" height="28" rx="8" fill="#fdf6e8" stroke="#b7791f" stroke-width="1.2"/>
+  <text x="210" y="315" text-anchor="middle" font-size="11" fill="#8a6420">pod lacks requests → add LimitRange defaults</text>
+  <rect x="400" y="296" width="300" height="28" rx="8" fill="#fdf6e8" stroke="#b7791f" stroke-width="1.2"/>
+  <text x="550" y="315" text-anchor="middle" font-size="11" fill="#8a6420">status.used lagging → wait ≤ sync-period (~5m)</text>
+</svg>
+<div class="caption">Read <code>hard</code> vs <code>used</code> — the resource that equals its cap is your culprit. If none do: missing requests, or quota-cache lag.</div>
 </div>
 
 <h3>Quick diagnosis commands</h3>
@@ -256,42 +522,56 @@ oc get pods -n &lt;target-namespace&gt; -o json | \
 # multi-project quota
 oc describe clusterquota &lt;crq-name&gt;</code></pre>
 
-<h2 id="s8"><span class="num">8</span>Deployment via GitOps</h2>
-<div class="mermaid">
-flowchart LR
-    PR["team PR:<br/>namespace + quota +<br/>limitrange manifests"] --> ARGO["ArgoCD / OpenShift GitOps<br/>syncs to cluster"]
-    ARGO --> NS["namespace + quota + limits +<br/>netpol + RBAC — all atomic"]
-</div>
-<ul class="tight">
-  <li>Keep quota + limitrange + namespace in the <b>same Application</b>.</li>
-  <li>Never apply a compute quota to a live namespace before its LimitRange exists —
-      running pods survive, but every new rollout fails until pods carry requests.</li>
-</ul>
+<!-- ============ 9. GITOPS ============ -->
+<h2 id="s9"><span class="num">9</span>Deploy Quotas via GitOps</h2>
+<p class="lead">Quotas are governance — they belong in Git, reviewed like any policy, not applied by hand from a ticket.</p>
 
-<h2 id="s9"><span class="num">9</span>Best-Practice Checklist</h2>
-<div class="card">
-<ul class="tight">
-  <li>☐ Every user namespace gets <b>both</b> ResourceQuota <i>and</i> LimitRange (project template or GitOps)</li>
-  <li>☐ <code>scopes: [BestEffort]</code> + <code>pods: "0"</code> — or LimitRange defaults — prevents unbounded pods</li>
-  <li>☐ Object-count quotas (<code>configmaps</code>, <code>secrets</code>, <code>services</code>) — they protect etcd, not nodes</li>
-  <li>☐ <code>services.loadbalancers</code> / <code>nodeports</code> pinned to <code>0</code> where not needed</li>
-  <li>☐ ClusterResourceQuota for team pools; per-namespace ResourceQuota for hard walls</li>
-  <li>☐ Alert on <code>used / hard &gt; 80%</code> — run <code>scripts/quota-audit.sh</code></li>
-  <li>☐ Quota changes via PR with approval — quota <i>is</i> policy</li>
-</ul>
+<div class="diagram">
+<svg viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif">
+  <rect x="20" y="40" width="200" height="70" rx="10" fill="#e8f0fb" stroke="#1a6fd4" stroke-width="1.6"/>
+  <text x="120" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="#1a6fd4">team opens PR</text>
+  <text x="120" y="88" text-anchor="middle" font-size="11" fill="#2f5a8c">namespace + quota + limitrange yaml</text>
+
+  <line x1="220" y1="75" x2="255" y2="75" stroke="#8a8578" stroke-width="2"/>
+  <polygon points="255,70 267,75 255,80" fill="#8a8578"/>
+
+  <rect x="270" y="40" width="200" height="70" rx="10" fill="#e9e4f8" stroke="#6b46c1" stroke-width="1.6"/>
+  <text x="370" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="#6b46c1">ArgoCD / OpenShift GitOps</text>
+  <text x="370" y="88" text-anchor="middle" font-size="11" fill="#5a4a8c">approves + syncs to cluster</text>
+
+  <line x1="470" y1="75" x2="505" y2="75" stroke="#8a8578" stroke-width="2"/>
+  <polygon points="505,70 517,75 505,80" fill="#8a8578"/>
+
+  <rect x="520" y="40" width="220" height="70" rx="10" fill="#eef9ee" stroke="#1a8917" stroke-width="1.6"/>
+  <text x="630" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="#1a8917">namespace provisioned</text>
+  <text x="630" y="88" text-anchor="middle" font-size="11" fill="#2f6b2f">quota + limits + RBAC + netpol — atomic</text>
+</svg>
+<div class="caption">Same Application → same commit → no drift between the wall and its defaults.</div>
 </div>
+
+<div class="callout danger">Never apply a compute quota to a <b>live</b> namespace before its
+LimitRange exists. Running pods are unaffected — but every new rollout fails until pods
+carry requests.</div>
+
+<!-- ============ 10. CHECKLIST ============ -->
+<h2 id="s10"><span class="num">10</span>Best-Practice Checklist</h2>
+<table>
+  <tr><th></th><th>Practice</th><th>Why</th></tr>
+  <tr><td>☐</td><td>Every user namespace gets <b>both</b> ResourceQuota <i>and</i> LimitRange</td><td>Ceiling without defaults = mass rejections</td></tr>
+  <tr><td>☐</td><td><code>scopes: [BestEffort]</code> + <code>pods: "0"</code> — or LimitRange defaults</td><td>No unbounded pods</td></tr>
+  <tr><td>☐</td><td>Object-count quotas on configmaps / secrets / services</td><td>Protects etcd, not nodes</td></tr>
+  <tr><td>☐</td><td><code>services.loadbalancers</code> / <code>nodeports</code> pinned to <code>0</code></td><td>No accidental external exposure</td></tr>
+  <tr><td>☐</td><td>CRQ for team pools; per-namespace RQ for hard walls</td><td>Flexible + strict where needed</td></tr>
+  <tr><td>☐</td><td>Alert / audit at <code>used / hard &gt; 80%</code></td><td><code>scripts/quota-audit.sh</code></td></tr>
+  <tr><td>☐</td><td>Quota changes via PR + approval</td><td>Quota <i>is</i> policy</td></tr>
+</table>
 
 </div>
 
 <footer>
-  OCP_Issue-Fix_RCA · Issue 33 — ResourceQuota Controls · generated 2026-10-26 · lab.ocp.local (OCP 4.20.35)
+  OCP_Issue-Fix_RCA · Issue 33 — ResourceQuota Controls · 2026-10-26 · lab.ocp.local (OCP 4.20.35)<br>
+  Visual style inspired by the Medium/Stackademic ResourceQuota explainer — flat infographic diagrams, inline SVG, zero dependencies.
 </footer>
 
-<script>
-  mermaid.initialize({startOnLoad:true, theme:'dark', themeVariables:{
-    primaryColor:'#1a3a5c', primaryTextColor:'#e2e8f0', primaryBorderColor:'#3b82f6',
-    lineColor:'#64748b', fontFamily:'Segoe UI, sans-serif'
-  }});
-</script>
 </body>
 </html>
