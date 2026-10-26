@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: no-besteffort
+  namespace: <target-namespace>
+  labels:
+    governance: quota
+spec:
+  hard:
+    pods: "0"
+  scopes:
+  - BestEffort

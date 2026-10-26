@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResourceQuota Controls — OpenShift Namespace Resource Governance</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a2230; --panel2:#222c3d; --line:#334155;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#ee2e24; --accent2:#3b82f6;
+    --ok:#22c55e; --warn:#eab308; --code:#0b0f14;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+  header{background:linear-gradient(135deg,#8b1a1a,#ee2e24 55%,#f97316);padding:48px 24px;text-align:center}
+  header h1{margin:0;font-size:2rem;color:#fff}
+  header p{margin:8px 0 0;color:#ffe4d6;font-size:1.05rem}
+  .wrap{max-width:1000px;margin:0 auto;padding:24px 20px 80px}
+  nav.toc{position:sticky;top:0;background:rgba(15,20,25,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 20px;z-index:10;overflow-x:auto;white-space:nowrap}
+  nav.toc a{color:var(--accent2);text-decoration:none;margin-right:16px;font-size:.85rem}
+  nav.toc a:hover{text-decoration:underline}
+  h2{margin-top:48px;padding-top:16px;border-top:2px solid var(--line);color:#fff;font-size:1.45rem}
+  h2 .num{color:var(--accent);margin-right:10px}
+  h3{color:#cbd5e1;margin-top:28px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:16px 0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.9rem}
+  th{background:var(--panel2);color:#fff;text-align:left}
+  th,td{border:1px solid var(--line);padding:8px 10px;vertical-align:top}
+  code{background:var(--code);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-family:'Cascadia Code',Consolas,monospace;font-size:.85em;color:#f8b4b4}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:.82rem}
+  pre code{border:none;padding:0;color:#d1e7ff}
+  .mermaid{background:#0d1117;border:1px solid var(--line);border-radius:10px;padding:18px;margin:18px 0;display:flex;justify-content:center}
+  .callout{border-left:4px solid var(--accent2);background:#1a2740;padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+  .callout.warn{border-color:var(--warn);background:#2b2410}
+  .callout.danger{border-color:var(--accent);background:#2b1010}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+  .b-doc{background:#1a3a5c;color:#7cc4ff}
+  footer{border-top:1px solid var(--line);margin-top:60px;padding:24px 20px;text-align:center;color:var(--muted);font-size:.8rem}
+  ul.tight li{margin:4px 0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ResourceQuota Controls</h1>
+  <p>OpenShift Namespace Resource Governance — visual guide &amp; troubleshooting reference</p>
+  <p style="font-size:.85rem">lab.ocp.local &nbsp;·&nbsp; OCP 4.20.35 &nbsp;·&nbsp; OCP_Issue-Fix_RCA — Issue 33</p>
+</header>
+
+<nav class="toc">
+  <a href="#s1">1 · Why quotas</a>
+  <a href="#s2">2 · Governance stack</a>
+  <a href="#s3">3 · Enforcement flow</a>
+  <a href="#s4">4 · Quota matrix</a>
+  <a href="#s5">5 · OCP specifics</a>
+  <a href="#s6">6 · Manifests</a>
+  <a href="#s7">7 · Troubleshooting</a>
+  <a href="#s8">8 · GitOps</a>
+  <a href="#s9">9 · Checklist</a>
+</nav>
+
+<div class="wrap">
+
+<h2 id="s1"><span class="num">1</span>What ResourceQuota Is — and Why It Exists</h2>
+<p><span class="badge b-doc">Documented · reference guide</span></p>
+<p>A <strong>ResourceQuota</strong> is a namespace-scoped object that sets a <strong>hard ceiling</strong>
+on the resources a namespace may consume. On a shared cluster it is the <strong>bulkhead</strong> —
+one team can never consume so much CPU, memory, storage, or object count that it sinks the others.
+Enforcement happens at <strong>admission time</strong>, before the object is ever persisted.</p>
+
+<div class="mermaid">
+flowchart TD
+    subgraph CLUSTER["Shared OCP Cluster — total capacity"]
+        NS1["ns team-a · 8 CPU / 16Gi"]
+        NS2["ns team-b · 4 CPU / 8Gi"]
+        NS3["ns batch · 2 CPU / 4Gi"]
+    end
+    X["noisy-neighbor workload<br/>tries to exceed quota"] -->|REJECTED at admission| NS3
+</div>
+
+<h2 id="s2"><span class="num">2</span>The Governance Stack — How the Pieces Fit</h2>
+<p>ResourceQuota never works alone — the complete model has four layers:</p>
+
+<div class="mermaid">
+flowchart TB
+    CRQ["ClusterResourceQuota<br/>OCP only — one pool across MANY namespaces"]
+    RQ["ResourceQuota<br/>namespace ceiling — requests, limits, counts, storage"]
+    LR["LimitRange<br/>per-object defaults &amp; min/max"]
+    POD["Pod spec requests/limits<br/>(what the quota counts)"]
+    CRQ -->|aggregates by label selector| RQ
+    RQ -->|reject if used + new &gt; hard| POD
+    LR -->|injects defaults| POD
+    POD -->|must declare requests<br/>once compute quota exists| RQ
+</div>
+
+<table>
+  <tr><th>Layer</th><th>Scope</th><th>Purpose</th></tr>
+  <tr><td><b>ClusterResourceQuota</b></td><td>Many namespaces (label selector)</td><td>OCP-only. A team-level pool spanning dev/test/qa projects</td></tr>
+  <tr><td><b>ResourceQuota</b></td><td>One namespace</td><td>Hard ceiling on Σ requests, Σ limits, storage, object counts</td></tr>
+  <tr><td><b>LimitRange</b></td><td>One namespace</td><td>Per-container defaults/min/max — makes quota enforcement usable</td></tr>
+  <tr><td><b>requests/limits</b></td><td>Each container</td><td>The units the quota counts</td></tr>
+</table>
+
+<div class="callout warn"><strong>Critical interaction:</strong> once a compute quota
+(<code>requests.cpu</code>/<code>requests.memory</code>) exists, every new pod must declare those
+values or it is rejected. A LimitRange with defaults is what keeps developer pods from failing
+en-masse.</div>
+
+<h2 id="s3"><span class="num">3</span>Enforcement — Where the Rejection Happens</h2>
+<p>Quota is enforced by the <strong>API-server admission controller</strong> — not the scheduler or kubelet.
+<code>status.used</code> is a cache refreshed asynchronously (<code>resource-quota-sync-period</code>, default 5m).</p>
+
+<div class="mermaid">
+sequenceDiagram
+    participant U as User / CI / ArgoCD
+    participant A as API Server admission
+    participant Q as ResourceQuota plugin
+    participant E as etcd
+    U->>A: create Pod / PVC / Service
+    A->>Q: check namespace quotas
+    Q->>Q: used + requested ≤ hard?
+    alt Within quota
+        Q-->>A: ALLOW
+        A->>E: persist object
+        A-->>U: 201 Created
+    else Exceeds quota
+        Q-->>A: DENY
+        A-->>U: 403 exceeded quota
+    end
+</div>
+
+<ul class="tight">
+  <li>Failures surface as <code>403 Forbidden … exceeded quota</code> — <b>not</b> as Pending pods.</li>
+  <li>Quota counts <b>requests</b> (and limits), never real usage.</li>
+  <li><code>status.used</code> can lag real objects by up to the sync period.</li>
+</ul>
+
+<h2 id="s4"><span class="num">4</span>What Can Be Quota'd</h2>
+<h3>Compute &amp; storage</h3>
+<table>
+  <tr><th>Quota key</th><th>Counts</th><th>Notes</th></tr>
+  <tr><td><code>requests.cpu</code> / <code>requests.memory</code></td><td>Σ pod requests</td><td>Primary scheduling contract</td></tr>
+  <tr><td><code>limits.cpu</code> / <code>limits.memory</code></td><td>Σ pod limits</td><td>Cap the cap</td></tr>
+  <tr><td><code>requests.storage</code></td><td>Σ PVC sizes</td><td>All StorageClasses combined</td></tr>
+  <tr><td><code>&lt;class&gt;.storageclass.storage.k8s.io/requests.storage</code></td><td>Σ PVC size per class</td><td>Per-StorageClass control</td></tr>
+  <tr><td><code>persistentvolumeclaims</code></td><td>PVC count</td><td>Prevent claim sprawl</td></tr>
+</table>
+<h3>Object counts (protect the control plane, not the nodes)</h3>
+<table>
+  <tr><th>Quota key</th><th>Protects against</th></tr>
+  <tr><td><code>pods</code></td><td>Pod flood</td></tr>
+  <tr><td><code>services</code>, <code>services.loadbalancers</code>, <code>services.nodeports</code></td><td>Service / LB sprawl</td></tr>
+  <tr><td><code>secrets</code>, <code>configmaps</code></td><td>etcd bloat</td></tr>
+  <tr><td><code>count/&lt;resource&gt;.&lt;group&gt;</code></td><td><b>Any</b> resource incl. CRDs — e.g. <code>count/routes.route.openshift.io: "10"</code></td></tr>
+</table>
+<h3>Scopes — quota that only applies to matching pods</h3>
+<table>
+  <tr><th>Scope</th><th>Selects pods that are…</th><th>Typical use</th></tr>
+  <tr><td><code>BestEffort</code></td><td>no requests/limits at all</td><td><code>hard: pods: "0"</code> bans unbounded pods outright</td></tr>
+  <tr><td><code>NotBestEffort</code></td><td>have ≥1 request/limit</td><td>Normal compute quotas</td></tr>
+  <tr><td><code>Terminating</code></td><td>have activeDeadlineSeconds</td><td>Reserve room for jobs</td></tr>
+  <tr><td><code>PriorityClass</code></td><td>listed priorityClassName</td><td>Bigger slice for prod than dev</td></tr>
+</table>
+
+<div class="mermaid">
+flowchart LR
+    NP["new pod"] --> NP1{priority class?}
+    NP1 -->|prod-high| QP["quota prod-pods<br/>10 CPU"]
+    NP1 -->|dev-low| QD["quota dev-pods<br/>4 CPU"]
+    NP1 -->|no requests| QB["quota no-unlimited<br/>BestEffort pods=0"]
+    QB --> RJ["REJECTED — BestEffort banned"]
+</div>
+
+<h2 id="s5"><span class="num">5</span>OpenShift-Specific Mechanics</h2>
+<h3>ClusterResourceQuota — one pool, many projects</h3>
+<div class="mermaid">
+flowchart TB
+    CRQ["ClusterResourceQuota: team-a-aggregate<br/>hard: 12 CPU / 24Gi / 60 pods"]
+    N1["project shop-dev · team=a"]
+    N2["project shop-test · team=a"]
+    N3["project shop-qa · team=a"]
+    N4["project other · team=b"]
+    N1 & N2 & N3 -->|share the single pool| CRQ
+    N4 -.->|not selected| CRQ
+</div>
+<ul class="tight">
+  <li>Selected via namespace labels (<code>spec.selector.labels</code>) or the
+      <code>openshift.io/quota: &lt;name&gt;</code> annotation.</li>
+  <li>CRQ usage syncs <b>slowly by design</b> (~minutes) — not for instantaneous enforcement.</li>
+  <li>A namespace can be selected by only <b>one</b> CRQ.</li>
+  <li>Never put user quotas on <code>openshift-*</code> / <code>kube-*</code> / <code>default</code>.</li>
+  <li>The Project Request Template can inject quota+limitrange into <b>every</b> new project — the clean way to make quotas default-on.</li>
+</ul>
+
+<h2 id="s6"><span class="num">6</span>Reference Manifests</h2>
+<h3>Standard compute + object quota</h3>
+<pre><code>apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: app-quota
+  namespace: &lt;target-namespace&gt;
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "20"
+    persistentvolumeclaims: "5"
+    requests.storage: 50Gi
+    services.loadbalancers: "0"
+    services.nodeports: "0"</code></pre>
+
+<h3>The LimitRange that makes quotas usable</h3>
+<pre><code>apiVersion: v1
+kind: LimitRange
+metadata:
+  name: app-limits
+  namespace: &lt;target-namespace&gt;
+spec:
+  limits:
+  - type: Container
+    default:        { cpu: 500m, memory: 512Mi }   # injected when pod omits limits
+    defaultRequest: { cpu: 100m, memory: 128Mi }   # injected when pod omits requests
+    max:            { cpu: "2",  memory: 2Gi }
+    min:            { cpu: 50m,  memory: 64Mi }</code></pre>
+<div class="callout danger">Without this LimitRange, every pod lacking requests fails admission
+the moment the compute quota exists.</div>
+
+<h2 id="s7"><span class="num">7</span>Troubleshooting — <code>exceeded quota</code> Decision Tree</h2>
+<div class="mermaid">
+flowchart TD
+    E["create fails: exceeded quota"] --> D["oc describe quota -n ns<br/>compare hard vs used"]
+    D --> C{which resource hit?}
+    C -->|compute| C1["right-size requests OR<br/>request quota raise"]
+    C -->|pods count| C2["delete stale Succeeded pods"]
+    C -->|storage/PVC| C3["clean orphaned/Released PVCs"]
+    C -->|object count| C4["clean sprawl or raise limit"]
+    C -->|nothing obvious| C5{"pod has requests/limits?"}
+    C5 -->|NO| C5a["add LimitRange defaults"]
+    C5 -->|YES| C6{"status.used lagging?"}
+    C6 --> C6a["wait ≤ sync-period (5m default)"]
+    C1 & C2 & C3 & C4 & C5a & C6a --> F["re-create object"]
+</div>
+
+<h3>Quick diagnosis commands</h3>
+<pre><code># which quotas exist + usage
+oc get quota -n &lt;target-namespace&gt;
+oc describe quota &lt;quota-name&gt; -n &lt;target-namespace&gt;
+
+# pods with NO requests (rejected once compute quota exists)
+oc get pods -n &lt;target-namespace&gt; -o json | \
+  jq -r '.items[] | select([.spec.containers[].resources.requests.cpu] | any(. == null)) | .metadata.name'
+
+# multi-project quota
+oc describe clusterquota &lt;crq-name&gt;</code></pre>
+
+<h2 id="s8"><span class="num">8</span>Deployment via GitOps</h2>
+<div class="mermaid">
+flowchart LR
+    PR["team PR:<br/>namespace + quota +<br/>limitrange manifests"] --> ARGO["ArgoCD / OpenShift GitOps<br/>syncs to cluster"]
+    ARGO --> NS["namespace + quota + limits +<br/>netpol + RBAC — all atomic"]
+</div>
+<ul class="tight">
+  <li>Keep quota + limitrange + namespace in the <b>same Application</b>.</li>
+  <li>Never apply a compute quota to a live namespace before its LimitRange exists —
+      running pods survive, but every new rollout fails until pods carry requests.</li>
+</ul>
+
+<h2 id="s9"><span class="num">9</span>Best-Practice Checklist</h2>
+<div class="card">
+<ul class="tight">
+  <li>☐ Every user namespace gets <b>both</b> ResourceQuota <i>and</i> LimitRange (project template or GitOps)</li>
+  <li>☐ <code>scopes: [BestEffort]</code> + <code>pods: "0"</code> — or LimitRange defaults — prevents unbounded pods</li>
+  <li>☐ Object-count quotas (<code>configmaps</code>, <code>secrets</code>, <code>services</code>) — they protect etcd, not nodes</li>
+  <li>☐ <code>services.loadbalancers</code> / <code>nodeports</code> pinned to <code>0</code> where not needed</li>
+  <li>☐ ClusterResourceQuota for team pools; per-namespace ResourceQuota for hard walls</li>
+  <li>☐ Alert on <code>used / hard &gt; 80%</code> — run <code>scripts/quota-audit.sh</code></li>
+  <li>☐ Quota changes via PR with approval — quota <i>is</i> policy</li>
+</ul>
+</div>
+
+</div>
+
+<footer>
+  OCP_Issue-Fix_RCA · Issue 33 — ResourceQuota Controls · generated 2026-10-26 · lab.ocp.local (OCP 4.20.35)
+</footer>
+
+<script>
+  mermaid.initialize({startOnLoad:true, theme:'dark', themeVariables:{
+    primaryColor:'#1a3a5c', primaryTextColor:'#e2e8f0', primaryBorderColor:'#3b82f6',
+    lineColor:'#64748b', fontFamily:'Segoe UI, sans-serif'
+  }});
+</script>
+</body>
+</html>

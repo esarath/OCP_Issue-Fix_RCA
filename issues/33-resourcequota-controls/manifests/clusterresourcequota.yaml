@@ -1,0 +1,15 @@
+apiVersion: quota.openshift.io/v1
+kind: ClusterResourceQuota
+metadata:
+  name: team-a-aggregate
+spec:
+  selector:
+    labels:
+      team: a
+  quota:
+    hard:
+      requests.cpu: "12"
+      requests.memory: 24Gi
+      limits.cpu: "24"
+      limits.memory: 48Gi
+      pods: "60"
