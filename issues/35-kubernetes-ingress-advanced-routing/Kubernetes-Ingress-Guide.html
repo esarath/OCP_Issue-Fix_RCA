@@ -1,0 +1,2568 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content="Devin artifact kit" />
+    <title>Kubernetes Ingress — a simple visual guide</title>
+    <style>
+/* Devin artifact kit — self-contained styles for standalone HTML artifacts.
+   Tokens are translated from the Devin product design system. Light is the
+   default; dark is applied from `prefers-color-scheme` unless a host theme
+   signal (`?theme=`, `data-theme`, or a `devin:theme` message) says otherwise. */
+
+:root {
+  color-scheme: light;
+
+  --bg-page: 252 252 252;
+  --bg-wash: 248 248 248;
+  --bg-elevated: 255 255 255;
+  --tint-tertiary: 0 0 0 / 0.04;
+  --tint-secondary: 0 0 0 / 0.06;
+  --tint-primary: 0 0 0 / 0.08;
+  --text-primary: 25 25 25;
+  --text-secondary: 25 25 25 / 0.64;
+  --text-tertiary: 25 25 25 / 0.4;
+  --text-accent: 49 124 255;
+  --bg-accent: 49 124 255;
+  --border-secondary: 0 0 0 / 0.08;
+  --border-primary: 0 0 0 / 0.1;
+  --text-green: 0 165 88;
+  --text-orange: 245 142 58;
+  --text-red: 245 59 58;
+  --text-blue: 51 125 244;
+  --text-purple: 149 108 222;
+  --shadow-l1: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-l2: 0 4px 12px rgb(0 0 0 / 0.08);
+
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --unit: 4px;
+  --max-width: 1120px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-page: 20 20 20;
+  --bg-wash: 25 25 25;
+  --bg-elevated: 31 31 31;
+  --tint-tertiary: 255 255 255 / 0.03;
+  --tint-secondary: 255 255 255 / 0.05;
+  --tint-primary: 255 255 255 / 0.08;
+  --text-primary: 255 255 255 / 0.9;
+  --text-secondary: 255 255 255 / 0.52;
+  --text-tertiary: 255 255 255 / 0.4;
+  --text-accent: 73 176 255;
+  --bg-accent: 68 137 255;
+  --border-secondary: 255 255 255 / 0.04;
+  --border-primary: 255 255 255 / 0.08;
+  --text-green: 0 236 126;
+  --text-orange: 245 142 58;
+  --text-red: 255 108 107;
+  --text-blue: 92 154 255;
+  --text-purple: 178 145 240;
+  --shadow-l1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-l2: 0 4px 12px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --bg-page: 20 20 20;
+    --bg-wash: 25 25 25;
+    --bg-elevated: 31 31 31;
+    --tint-tertiary: 255 255 255 / 0.03;
+    --tint-secondary: 255 255 255 / 0.05;
+    --tint-primary: 255 255 255 / 0.08;
+    --text-primary: 255 255 255 / 0.9;
+    --text-secondary: 255 255 255 / 0.52;
+    --text-tertiary: 255 255 255 / 0.4;
+    --text-accent: 73 176 255;
+    --bg-accent: 68 137 255;
+    --border-secondary: 255 255 255 / 0.04;
+    --border-primary: 255 255 255 / 0.08;
+    --text-green: 0 236 126;
+    --text-orange: 245 142 58;
+    --text-red: 255 108 107;
+    --text-blue: 92 154 255;
+    --text-purple: 178 145 240;
+    --shadow-l1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-l2: 0 4px 12px rgb(0 0 0 / 0.5);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: rgb(var(--bg-page));
+  color: rgb(var(--text-primary));
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(button, a, input, select, summary, [tabindex]):focus-visible {
+  outline: 1px solid rgb(var(--bg-accent));
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- layout ---------- */
+
+.a-shell {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: calc(var(--unit) * 8) calc(var(--unit) * 6) calc(var(--unit) * 16);
+}
+
+.a-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: calc(var(--unit) * 3);
+  padding-bottom: calc(var(--unit) * 4);
+  border-bottom: 1px solid rgb(var(--border-primary));
+}
+
+.a-header__title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.a-header__subtitle {
+  margin: calc(var(--unit) * 1) 0 0;
+  color: rgb(var(--text-secondary));
+  font-size: 13px;
+  line-height: 18px;
+  max-width: 68ch;
+}
+
+.a-section {
+  margin-top: calc(var(--unit) * 9);
+}
+
+.a-section__title {
+  margin: 0 0 calc(var(--unit) * 1);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.a-section__note,
+.a-prose {
+  margin: 0 0 calc(var(--unit) * 4);
+  color: rgb(var(--text-secondary));
+  font-size: 13px;
+  line-height: 20px;
+  max-width: 72ch;
+}
+
+.a-grid {
+  display: grid;
+  gap: calc(var(--unit) * 3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.a-grid--halves {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+/* ---------- surfaces ---------- */
+
+.a-panel {
+  background: rgb(var(--bg-elevated));
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-l1);
+  padding: calc(var(--unit) * 4);
+}
+
+.a-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--unit) * 2);
+  margin-bottom: calc(var(--unit) * 3);
+}
+
+.a-panel__title {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.a-label {
+  color: rgb(var(--text-tertiary));
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: none;
+}
+
+/* ---------- metrics ---------- */
+
+.a-metric {
+  background: rgb(var(--tint-tertiary));
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius);
+  padding: calc(var(--unit) * 3);
+}
+
+.a-metric__label {
+  color: rgb(var(--text-secondary));
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.a-metric__value {
+  margin-top: calc(var(--unit) * 1);
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.a-metric__delta {
+  margin-top: calc(var(--unit) * 1);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--text-secondary));
+}
+
+.a-metric__delta[data-trend="up"] {
+  color: rgb(var(--text-green));
+}
+
+.a-metric__delta[data-trend="down"] {
+  color: rgb(var(--text-red));
+}
+
+/* ---------- status ---------- */
+
+.a-status {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--unit) * 1.5);
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--text-secondary));
+  white-space: nowrap;
+}
+
+.a-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.a-status[data-state="done"] {
+  color: rgb(var(--text-green));
+}
+
+.a-status[data-state="active"] {
+  color: rgb(var(--text-blue));
+}
+
+.a-status[data-state="at-risk"] {
+  color: rgb(var(--text-orange));
+}
+
+.a-status[data-state="blocked"] {
+  color: rgb(var(--text-red));
+}
+
+.a-status[data-state="planned"] {
+  color: rgb(var(--text-tertiary));
+}
+
+/* ---------- tables ---------- */
+
+.a-table-scroll {
+  overflow-x: auto;
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius);
+  background: rgb(var(--bg-elevated));
+}
+
+.a-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.a-table th,
+.a-table td {
+  text-align: left;
+  padding: calc(var(--unit) * 2) calc(var(--unit) * 3);
+  border-bottom: 1px solid rgb(var(--border-secondary));
+  vertical-align: top;
+}
+
+.a-table thead th {
+  position: sticky;
+  top: 0;
+  background: rgb(var(--bg-wash));
+  color: rgb(var(--text-secondary));
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 16px;
+  z-index: 1;
+}
+
+.a-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.a-table tbody tr:hover td {
+  background: rgb(var(--tint-tertiary));
+}
+
+.a-table td[data-numeric],
+.a-table th[data-numeric] {
+  text-align: right;
+  font-family: var(--font-mono);
+}
+
+/* Pinned columns: `data-a-sticky-columns="N"` keeps the first N columns in
+   view while the table scrolls sideways. CSS alone pins the first column, so
+   N=1 works without script; kit.js measures the leading columns, marks each
+   pinned cell `data-a-sticky` with its `--a-sticky-left` offset, and flags the
+   table `data-a-sticky-ready`. Pinned cells need opaque backgrounds or the
+   scrolled columns show through them. */
+.a-table[data-a-sticky-columns]:not([data-a-sticky-ready]):not([data-a-sticky-columns="0"])
+  tr
+  > :first-child,
+.a-table[data-a-sticky-ready] [data-a-sticky] {
+  position: sticky;
+  left: var(--a-sticky-left, 0);
+  z-index: 1;
+  background-color: rgb(var(--bg-elevated));
+}
+
+/* Header row above pinned body cells; the pinned corner above both. */
+.a-table[data-a-sticky-columns] thead th {
+  z-index: 2;
+}
+
+.a-table[data-a-sticky-columns]:not([data-a-sticky-ready]):not([data-a-sticky-columns="0"])
+  thead
+  tr
+  > :first-child,
+.a-table[data-a-sticky-ready] thead [data-a-sticky] {
+  z-index: 3;
+  background-color: rgb(var(--bg-wash));
+}
+
+/* The row tint is translucent, so layer it over the opaque surface. */
+.a-table[data-a-sticky-columns]:not([data-a-sticky-ready]):not([data-a-sticky-columns="0"])
+  tbody
+  tr:hover
+  > td:first-child,
+.a-table[data-a-sticky-ready] tbody tr:hover > td[data-a-sticky] {
+  background: linear-gradient(
+      rgb(var(--tint-tertiary)),
+      rgb(var(--tint-tertiary))
+    )
+    rgb(var(--bg-elevated));
+}
+
+/* Divider on the last pinned column. Table cells don't paint box-shadow when
+   borders collapse, so it is a pseudo-element. Without script there is no
+   scroll state and it is always shown; with it, only while scrolled. */
+.a-table[data-a-sticky-columns]:not([data-a-sticky-ready]):not([data-a-sticky-columns="0"])
+  tr
+  > :first-child::after,
+.a-table[data-a-sticky-ready] [data-a-sticky="edge"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 8px;
+  border-left: 1px solid rgb(var(--border-primary));
+  background: linear-gradient(to right, rgb(0 0 0 / 0.08), transparent);
+  pointer-events: none;
+}
+
+.a-table-scroll:not([data-a-scrolled])
+  .a-table[data-a-sticky-ready]
+  [data-a-sticky="edge"]::after {
+  display: none;
+}
+
+/* ---------- charts (inline SVG + CSS bars) ---------- */
+
+.a-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.a-chart__grid line {
+  stroke: rgb(var(--border-primary));
+  stroke-dasharray: 2 3;
+}
+
+.a-chart__axis text {
+  fill: rgb(var(--text-tertiary));
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.a-chart__series {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.a-chart__point {
+  stroke: rgb(var(--bg-elevated));
+  stroke-width: 1.5;
+}
+
+.a-bars {
+  display: grid;
+  gap: calc(var(--unit) * 2);
+  margin: 0;
+}
+
+.a-bars__row {
+  display: grid;
+  grid-template-columns: minmax(88px, 22%) 1fr auto;
+  align-items: center;
+  gap: calc(var(--unit) * 2);
+  font-size: 13px;
+}
+
+.a-bars__track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(var(--tint-secondary));
+  overflow: hidden;
+}
+
+.a-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: rgb(var(--bg-accent));
+}
+
+.a-bars__value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgb(var(--text-secondary));
+}
+
+.a-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--unit) * 3);
+  margin: calc(var(--unit) * 3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: rgb(var(--text-secondary));
+}
+
+.a-legend li {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--unit) * 1.5);
+}
+
+.a-legend__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* Series colors stay stable across themes so legends keep meaning. */
+.a-series-1 {
+  --series: 49 124 255;
+}
+.a-series-2 {
+  --series: 0 165 88;
+}
+.a-series-3 {
+  --series: 149 108 222;
+}
+.a-series-4 {
+  --series: 245 142 58;
+}
+
+.a-chart__series.a-series-1,
+.a-chart__series.a-series-2,
+.a-chart__series.a-series-3,
+.a-chart__series.a-series-4 {
+  stroke: rgb(var(--series));
+}
+
+.a-chart__point.a-series-1,
+.a-chart__point.a-series-2,
+.a-chart__point.a-series-3,
+.a-chart__point.a-series-4 {
+  fill: rgb(var(--series));
+}
+
+.a-series-1 .a-legend__swatch,
+.a-series-2 .a-legend__swatch,
+.a-series-3 .a-legend__swatch,
+.a-series-4 .a-legend__swatch {
+  background: rgb(var(--series));
+}
+
+.a-chart__bar.a-series-1,
+.a-chart__bar.a-series-2,
+.a-chart__bar.a-series-3,
+.a-chart__bar.a-series-4 {
+  fill: rgb(var(--series));
+}
+
+/* Dimming the rest of the plot reads as "this is the value you asked for"
+   without moving anything, which keeps the highlight legible under
+   reduced motion. */
+.a-chart__bar,
+.a-chart__point,
+.a-chart__series {
+  transition: opacity 120ms ease;
+}
+
+.a-chart__plot:has([data-a-active]) .a-chart__bar:not([data-a-active]) {
+  opacity: 0.45;
+}
+
+.a-chart__point[data-a-active] {
+  r: 4.25;
+}
+
+.a-chart__crosshair {
+  stroke: rgb(var(--border-primary));
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.a-chart__band {
+  fill: transparent;
+  /* Vertical scrolling must still work when a finger lands on the plot. */
+  touch-action: pan-y;
+}
+
+.a-chart__band[data-a-active] {
+  fill: rgb(var(--tint-secondary));
+}
+
+.a-chart__band:focus-visible {
+  outline: 1px solid rgb(var(--bg-accent));
+  outline-offset: -2px;
+}
+
+.a-chart {
+  touch-action: pan-y;
+}
+
+/* Shown in place of the plot when a filter leaves the source table empty. */
+.a-chart__empty {
+  margin: 0 0 calc(var(--unit) * 3);
+  padding: calc(var(--unit) * 6) 0;
+  border: 1px dashed rgb(var(--border-secondary));
+  border-radius: var(--radius);
+  color: rgb(var(--text-secondary));
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---------- tooltip ---------- */
+
+.a-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  min-width: 120px;
+  max-width: 260px;
+  padding: calc(var(--unit) * 2) calc(var(--unit) * 2.5);
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius);
+  background: rgb(var(--bg-elevated));
+  box-shadow: var(--shadow-l2);
+  color: rgb(var(--text-primary));
+  font-size: 12px;
+  line-height: 16px;
+  pointer-events: none;
+}
+
+.a-tip__title {
+  margin-bottom: var(--unit);
+  font-weight: 600;
+  color: rgb(var(--text-primary));
+}
+
+.a-tip__text {
+  color: rgb(var(--text-secondary));
+}
+
+.a-tip__row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--unit) * 1.5);
+  white-space: nowrap;
+}
+
+.a-tip__swatch {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 2px;
+  background: rgb(var(--series, var(--bg-accent)));
+}
+
+.a-tip__name {
+  color: rgb(var(--text-secondary));
+}
+
+.a-tip__value {
+  margin-left: auto;
+  padding-left: calc(var(--unit) * 2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- controls: tabs, filters, toggles ---------- */
+
+.a-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--unit) * 2);
+  margin-bottom: calc(var(--unit) * 4);
+}
+
+.a-tabs {
+  display: flex;
+  gap: calc(var(--unit) * 1);
+  padding: 2px;
+  background: rgb(var(--tint-tertiary));
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius);
+}
+
+.a-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgb(var(--text-secondary));
+  font: inherit;
+  font-size: 13px;
+  padding: calc(var(--unit) * 1) calc(var(--unit) * 2.5);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.a-btn:hover {
+  background: rgb(var(--tint-secondary));
+  color: rgb(var(--text-primary));
+}
+
+.a-btn[aria-selected="true"],
+.a-btn[aria-pressed="true"] {
+  background: rgb(var(--bg-elevated));
+  border-color: rgb(var(--border-primary));
+  color: rgb(var(--text-primary));
+  box-shadow: var(--shadow-l1);
+}
+
+.a-btn--outline {
+  border-color: rgb(var(--border-primary));
+  background: rgb(var(--bg-elevated));
+}
+
+.a-btn--icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+}
+
+.a-theme-icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.a-theme-icon--moon {
+  display: none;
+}
+
+:root[data-theme="dark"] .a-theme-icon--sun {
+  display: none;
+}
+
+:root[data-theme="dark"] .a-theme-icon--moon {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .a-theme-icon--sun {
+    display: none;
+  }
+
+  :root:not([data-theme]) .a-theme-icon--moon {
+    display: block;
+  }
+}
+
+.a-select {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  color: rgb(var(--text-primary));
+  background: rgb(var(--bg-elevated));
+  border: 1px solid rgb(var(--border-primary));
+  border-radius: var(--radius-sm);
+  padding: calc(var(--unit) * 1) calc(var(--unit) * 2);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ---------- diagram ---------- */
+
+.a-diagram {
+  position: relative;
+  background: rgb(var(--bg-wash));
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.a-diagram__canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.a-diagram__canvas:active {
+  cursor: grabbing;
+}
+
+.a-group rect {
+  fill: rgb(var(--tint-tertiary));
+  stroke: rgb(var(--border-primary));
+  stroke-dasharray: 4 4;
+  rx: 10;
+}
+
+.a-group text {
+  fill: rgb(var(--text-tertiary));
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.a-node rect {
+  fill: rgb(var(--bg-elevated));
+  stroke: rgb(var(--border-primary));
+  rx: 8;
+}
+
+.a-node__title {
+  fill: rgb(var(--text-primary));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.a-node__sub {
+  fill: rgb(var(--text-secondary));
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.a-node {
+  cursor: pointer;
+}
+
+.a-node:hover rect,
+.a-node:focus-visible rect {
+  stroke: rgb(var(--bg-accent));
+}
+
+.a-node[aria-current="true"] rect {
+  stroke: rgb(var(--bg-accent));
+  stroke-width: 2;
+}
+
+.a-edge {
+  fill: none;
+  stroke: rgb(var(--text-tertiary));
+  stroke-width: 1.25;
+}
+
+.a-edge--dim {
+  stroke: rgb(var(--border-primary));
+}
+
+.a-edge__label {
+  fill: rgb(var(--text-tertiary));
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.a-inspector {
+  border-top: 1px solid rgb(var(--border-secondary));
+  background: rgb(var(--bg-elevated));
+  padding: calc(var(--unit) * 3) calc(var(--unit) * 4);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.a-inspector__title {
+  margin: 0 0 calc(var(--unit) * 1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- plan / process ---------- */
+
+.a-phase {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: calc(var(--unit) * 3);
+  padding: calc(var(--unit) * 4) 0;
+  border-bottom: 1px solid rgb(var(--border-secondary));
+}
+
+.a-phase:last-child {
+  border-bottom: none;
+}
+
+.a-phase__index {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgb(var(--text-tertiary));
+  padding-top: 2px;
+}
+
+.a-phase__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--unit) * 2);
+  justify-content: space-between;
+}
+
+.a-phase__title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.a-meta-list {
+  display: grid;
+  gap: calc(var(--unit) * 1);
+  margin: calc(var(--unit) * 2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: rgb(var(--text-secondary));
+}
+
+.a-meta-list li,
+.a-meta-list > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 15%) 1fr;
+  gap: calc(var(--unit) * 2);
+}
+
+.a-meta-list dt,
+.a-meta-list .a-meta-list__key {
+  color: rgb(var(--text-tertiary));
+  font-size: 12px;
+}
+
+.a-meta-list dd {
+  margin: 0;
+}
+
+.a-timeline {
+  display: grid;
+  gap: calc(var(--unit) * 1);
+  margin: 0;
+  font-size: 12px;
+}
+
+.a-timeline__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 20%) 1fr;
+  align-items: center;
+  gap: calc(var(--unit) * 2);
+}
+
+.a-timeline__track {
+  position: relative;
+  height: 10px;
+  background: rgb(var(--tint-tertiary));
+  border-radius: var(--radius-sm);
+}
+
+.a-timeline__span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-sm);
+  background: rgb(var(--bg-accent) / 0.75);
+}
+
+.a-timeline__span[data-state="at-risk"] {
+  background: rgb(var(--text-orange) / 0.75);
+}
+
+.a-timeline__span[data-state="done"] {
+  background: rgb(var(--text-green) / 0.7);
+}
+
+.a-timeline__scale {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  color: rgb(var(--text-tertiary));
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.a-callout {
+  border: 1px solid rgb(var(--border-secondary));
+  border-left: 2px solid rgb(var(--text-orange));
+  border-radius: var(--radius-sm);
+  background: rgb(var(--tint-tertiary));
+  padding: calc(var(--unit) * 3);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.a-callout--decision {
+  border-left-color: rgb(var(--bg-accent));
+}
+
+.a-callout--risk {
+  border-left-color: rgb(var(--text-red));
+}
+
+.a-callout__title {
+  margin: 0 0 calc(var(--unit) * 1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+details.a-disclosure {
+  border-top: 1px solid rgb(var(--border-secondary));
+  padding: calc(var(--unit) * 2) 0;
+}
+
+details.a-disclosure > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: rgb(var(--text-secondary));
+  list-style: none;
+}
+
+details.a-disclosure > summary::marker,
+details.a-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.a-disclosure > summary::before {
+  content: "+ ";
+  font-family: var(--font-mono);
+}
+
+details.a-disclosure[open] > summary::before {
+  content: "− ";
+}
+
+/* ---------- empty and error states ---------- */
+
+.a-empty,
+.a-error {
+  border: 1px dashed rgb(var(--border-primary));
+  border-radius: var(--radius);
+  padding: calc(var(--unit) * 6);
+  text-align: center;
+  color: rgb(var(--text-secondary));
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.a-error {
+  border-style: solid;
+  border-color: rgb(var(--text-red) / 0.4);
+  color: rgb(var(--text-primary));
+  text-align: left;
+}
+
+.a-error__title {
+  margin: 0 0 calc(var(--unit) * 1);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--text-red));
+}
+
+.a-footnote {
+  margin-top: calc(var(--unit) * 10);
+  padding-top: calc(var(--unit) * 4);
+  border-top: 1px solid rgb(var(--border-secondary));
+  color: rgb(var(--text-tertiary));
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.a-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 640px) {
+  .a-shell {
+    padding: calc(var(--unit) * 5) calc(var(--unit) * 4)
+      calc(var(--unit) * 12);
+  }
+
+  .a-header__title {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .a-bars__row,
+  .a-timeline__row,
+  .a-meta-list li,
+  .a-meta-list > div {
+    grid-template-columns: 1fr;
+    gap: calc(var(--unit) * 1);
+  }
+
+  .a-phase {
+    grid-template-columns: 1fr;
+  }
+
+  .a-phase__index {
+    padding-top: 0;
+  }
+
+  .a-toolbar {
+    align-items: stretch;
+  }
+
+  .a-tabs {
+    overflow-x: auto;
+  }
+}
+
+/* ---------- motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- print / export ---------- */
+
+@media print {
+  :root[data-theme],
+  :root:not([data-theme]) {
+    color-scheme: light only;
+    --bg-page: 252 252 252;
+    --bg-wash: 248 248 248;
+    --bg-elevated: 255 255 255;
+    --tint-tertiary: 0 0 0 / 0.04;
+    --tint-secondary: 0 0 0 / 0.06;
+    --tint-primary: 0 0 0 / 0.08;
+    --text-primary: 25 25 25;
+    --text-secondary: 25 25 25 / 0.64;
+    --text-tertiary: 25 25 25 / 0.4;
+    --text-accent: 49 124 255;
+    --bg-accent: 49 124 255;
+    --border-secondary: 0 0 0 / 0.08;
+    --border-primary: 0 0 0 / 0.1;
+    --text-green: 0 165 88;
+    --text-orange: 245 142 58;
+    --text-red: 245 59 58;
+    --text-blue: 51 125 244;
+    --text-purple: 149 108 222;
+    --shadow-l1: none;
+    --shadow-l2: none;
+  }
+
+  body {
+    background: #fff;
+    color: #111;
+  }
+
+  .a-no-print,
+  .a-toolbar,
+  .a-diagram__hint {
+    display: none !important;
+  }
+
+  .a-panel,
+  .a-table-scroll,
+  .a-diagram {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .a-table[data-a-sticky-columns] tr > :first-child,
+  .a-table [data-a-sticky] {
+    position: static !important;
+  }
+
+  .a-table[data-a-sticky-columns] tr > :first-child::after,
+  .a-table [data-a-sticky]::after {
+    display: none !important;
+  }
+
+  .a-section {
+    break-inside: avoid;
+    margin-top: 24px;
+  }
+
+  [hidden].a-print-reveal {
+    display: revert !important;
+  }
+}
+    </style>
+  </head>
+  <body>
+    <main class="a-shell">
+      <header class="a-header">
+        <div>
+          <h1 class="a-header__title">Kubernetes Ingress — a simple visual guide</h1>
+          <p class="a-header__subtitle">How Ingress routes outside HTTP/HTTPS traffic to your services: host and path routing, TLS, production setup, and advanced NGINX patterns.</p>
+        </div>
+        <button
+          type="button"
+          class="a-btn a-btn--icon a-no-print"
+          data-a-theme-toggle
+          aria-label="Switch to dark mode"
+          title="Switch to dark mode"
+        >
+          <svg
+            class="a-theme-icon a-theme-icon--moon"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+          >
+            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+          </svg>
+          <svg
+            class="a-theme-icon a-theme-icon--sun"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path
+              d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+            />
+          </svg>
+        </button>
+      </header>
+
+      <section
+        class="a-section a-error"
+        data-a-error
+        role="alert"
+        aria-live="polite"
+        hidden
+      >
+        <p class="a-error__title">Something in this artifact failed to run</p>
+        <p>
+          The content below is still readable, but an interactive control may
+          not respond.
+          <span data-a-error-detail></span>
+        </p>
+      </section>
+
+<style>
+pre.code{font-family:var(--font-mono);font-size:13px;line-height:1.5;background:rgb(var(--bg-wash));border:1px solid rgb(var(--border-primary)/.1);border-radius:8px;padding:12px 14px;overflow:auto;margin:10px 0}
+:not(pre)>code{font-family:var(--font-mono);font-size:.9em;background:rgb(var(--tint-primary)/.06);padding:1px 5px;border-radius:4px}
+figure.dg{margin:12px 0;padding:14px;background:#fff;border:1px solid rgb(var(--border-primary)/.12);border-radius:10px;overflow-x:auto}
+.steps{margin:8px 0 0;padding-left:22px}.steps li{margin:4px 0}
+.kv{margin:10px 0}
+[role=tab][aria-selected=true]{background:rgb(var(--bg-accent));color:#fff;border-color:rgb(var(--bg-accent))}
+[role=tabpanel]{padding-top:4px}
+</style>
+<section class="a-section" aria-labelledby="why"><h2 class="a-section__title" id="why">Why Ingress?</h2>
+<div class="a-prose"><p>You already know <strong>Pods</strong> run your app, <strong>Deployments</strong> scale it, and <strong>Services</strong> expose it inside the cluster. Ingress answers the next question: how do outside users reach many services through <strong>one entry point</strong>?</p></div>
+<div class="a-table-scroll"><table class="a-table"><caption class="a-visually-hidden">Kubernetes building blocks</caption><thead><tr><th scope="col">Building block</th><th scope="col">What it does</th></tr></thead><tbody><tr><th scope="row">Pod</th><td>Runs your app container</td></tr><tr><th scope="row">Deployment</th><td>Keeps N pods running; handles scaling and rollouts</td></tr><tr><th scope="row">Service</th><td>Stable internal address for a set of pods (Layer 4)</td></tr><tr><th scope="row">Ingress</th><td>Routes outside HTTP/HTTPS traffic to Services by <strong>domain</strong> or <strong>path</strong> (Layer 7)</td></tr></tbody></table></div>
+<p class="a-section__note" style="margin-top:12px">Colour key used in every diagram:</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 60' width='760' height='60' style='width:100%;height:auto;max-width:760px;display:block;margin:auto' role='img' aria-label='Legend: client green, ingress purple, service white, pod blue, network orange, secret yellow' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Legend: client green, ingress purple, service white, pod blue, network orange, secret yellow</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='10' y='12' width='110' height='36' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='65.0' y='34.5' text-anchor='middle' font-size='13'  fill='#111'>Client</text><rect x='130' y='12' width='110' height='36' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='185.0' y='34.5' text-anchor='middle' font-size='13'  fill='#111'>Ingress</text><rect x='250' y='12' width='110' height='36' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='305.0' y='34.5' text-anchor='middle' font-size='13'  fill='#111'>Service</text><rect x='370' y='12' width='80' height='36' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='410.0' y='34.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='490' y='12' width='110' height='36' rx='3' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='545.0' y='34.5' text-anchor='middle' font-size='13'  fill='#111'>DNS / LB</text><rect x='620' y='12' width='110' height='36' rx='3' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='675.0' y='34.5' text-anchor='middle' font-size='13'  fill='#111'>Secret</text></svg></figure><div class="a-grid a-grid--halves" style="margin-top:12px">
+<div class="a-callout a-callout--decision"><p class="a-callout__title">Problems it solves</p>Route by domain or URL path · terminate HTTPS in one place · put many services behind one public IP (one load balancer = lower cost).</div>
+<div class="a-callout"><p class="a-callout__title">Simple mental model</p>Ingress is the <strong>receptionist at the front door</strong> of your cluster: it reads the address on each request and sends it to the right room (Service).</div>
+</div></section>
+<section class="a-section" aria-labelledby="controller"><h2 class="a-section__title" id="controller">Ingress vs Ingress Controller</h2><p class="a-section__note">The most common confusion: an Ingress object does nothing on its own.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 200' width='900' height='200' style='width:100%;height:auto;max-width:900px;display:block;margin:auto' role='img' aria-label='Ingress YAML rules are watched by the Ingress Controller, which routes traffic to Services and Pods' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Ingress YAML rules are watched by the Ingress Controller, which routes traffic to Services and Pods</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='70' width='160' height='56' rx='3' fill='#EFEFEF' stroke='#777777' stroke-width='1.3'/><text x='100.0' y='95.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress (YAML)</text><text x='100.0' y='111.0' text-anchor='middle' font-size='10.5' fill='#444'>the rules</text><rect x='290' y='70' width='170' height='56' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='375.0' y='95.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress Controller</text><text x='375.0' y='111.0' text-anchor='middle' font-size='10.5' fill='#444'>NGINX / Traefik / HAProxy</text><rect x='560' y='76' width='100' height='44' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='610.0' y='102.5' text-anchor='middle' font-size='13'  fill='#111'>Service</text><rect x='690' y='69' width='182' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='698' y='77' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='723.0' y='98.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='756' y='77' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='781.0' y='98.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='814' y='77' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='839.0' y='98.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><path d='M180,98 L288,98' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><text x='234' y='88' font-size='11.5' text-anchor='middle' fill='#555'  font-style='italic'>watched by</text><path d='M460,98 L558,98' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='509' y='88' font-size='11.5' text-anchor='middle' fill='#555'  font-style='italic'>routes to</text><path d='M660,98 L688,98' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='100' y='150' font-size='11' text-anchor='middle' fill='#555'  >Rulebook (does nothing alone)</text><text x='375' y='150' font-size='11' text-anchor='middle' fill='#555'  >Traffic cop (the real proxy)</text></svg></figure><div class="a-table-scroll"><table class="a-table"><caption class="a-visually-hidden">Ingress resource vs controller</caption><thead><tr><th scope="col"></th><th scope="col">Ingress (resource)</th><th scope="col">Ingress Controller</th></tr></thead><tbody><tr><th scope="row">Role</th><td>The <strong>rulebook</strong></td><td>The <strong>traffic cop</strong></td></tr><tr><th scope="row">What it is</th><td><code>kind: Ingress</code> YAML</td><td>A Deployment running NGINX / Traefik / HAProxy</td></tr><tr><th scope="row">Where it lives</th><td>Stored in the Kubernetes API</td><td>Runs as pods behind a LoadBalancer Service</td></tr></tbody></table></div></section>
+<section class="a-section" aria-labelledby="flow"><h2 class="a-section__title" id="flow">How a request flows</h2><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1050 250' width='1050' height='250' style='width:100%;height:auto;max-width:1050px;display:block;margin:auto' role='img' aria-label='Request flow: client, DNS, cloud load balancer, Ingress Controller, Service, Pods' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Request flow: client, DNS, cloud load balancer, Ingress Controller, Service, Pods</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='330' y='20' width='705' height='180' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='340' y='38' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >Kubernetes cluster</text><rect x='20' y='100' width='110' height='46' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='75.0' y='120.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Client</text><text x='75.0' y='136.0' text-anchor='middle' font-size='10.5' fill='#444'>example.com/api</text><rect x='175' y='100' width='110' height='46' rx='3' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='230.0' y='120.0' text-anchor='middle' font-size='13'  fill='#111'>DNS</text><text x='230.0' y='136.0' text-anchor='middle' font-size='10.5' fill='#444'>name → LB IP</text><rect x='350' y='100' width='120' height='46' rx='3' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='410.0' y='120.0' text-anchor='middle' font-size='13'  fill='#111'>Load Balancer</text><text x='410.0' y='136.0' text-anchor='middle' font-size='10.5' fill='#444'>one public IP</text><rect x='515' y='100' width='140' height='46' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='585.0' y='120.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress Controller</text><text x='585.0' y='136.0' text-anchor='middle' font-size='10.5' fill='#444'>match host + path</text><rect x='700' y='100' width='95' height='46' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='747.5' y='120.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='747.5' y='136.0' text-anchor='middle' font-size='10.5' fill='#444'>api-service</text><rect x='825' y='98' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='833' y='106' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='861.0' y='127.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='897' y='106' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='925.0' y='127.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='961' y='106' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='989.0' y='127.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><path d='M130,123 L173,123' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M285,123 L348,123' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M470,123 L513,123' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M655,123 L698,123' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M795,123 L823,123' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><circle cx='152' cy='95' r='9' fill='#4B4BA0'/><text x='152' y='99' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>1</text><circle cx='316' cy='95' r='9' fill='#4B4BA0'/><text x='316' y='99' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>2</text><circle cx='492' cy='95' r='9' fill='#4B4BA0'/><text x='492' y='99' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>3</text><circle cx='676' cy='95' r='9' fill='#4B4BA0'/><text x='676' y='99' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>4</text><circle cx='810' cy='95' r='9' fill='#4B4BA0'/><text x='810' y='99' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>5</text><text x='525' y='232' font-size='11' text-anchor='middle' fill='#444'  >1 Client calls domain  ·  2 DNS returns LB IP  ·  3 LB forwards to controller  ·  4 Rule match → Service  ·  5 Service → Pod</text></svg></figure><ol class="steps">
+<li>User opens <code>example.com</code>.</li>
+<li>DNS resolves it to the load balancer IP.</li>
+<li>The load balancer forwards the request to the Ingress Controller.</li>
+<li>The controller matches the <strong>host</strong> and <strong>path</strong> rules and picks a Service.</li>
+<li>The Service forwards the request to one of its Pods.</li></ol></section>
+<section class="a-section" aria-labelledby="host"><h2 class="a-section__title" id="host">Pattern 1 — Host-based routing</h2><p class="a-section__note">Different domains go to different services, all sharing one IP. Use it when each product or team has its own sub-domain.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 820 246' width='820' height='246' style='width:100%;height:auto;max-width:820px;display:block;margin:auto' role='img' aria-label='Host-based routing: each domain goes to its own Service and Pods' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Host-based routing: each domain goes to its own Service and Pods</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='101.0' width='100' height='44' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='70.0' y='127.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Client</text><rect x='160' y='101.0' width='100' height='44' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='210.0' y='127.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress</text><path d='M120,123.0 L158,123.0' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M260,123.0 L280,123.0' fill='none' stroke='#222' stroke-width='1.3'  /><path d='M280,123.0 L280,72 Q280,62 290,62 L478,62' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='55' font-size='12' text-anchor='start' fill='#111'  >app.example.com</text><path d='M280,123.0 L280,114 Q280,124 290,124 L478,124' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='117' font-size='12' text-anchor='start' fill='#111'  >api.example.com</text><path d='M280,123.0 L280,176 Q280,186 290,186 L478,186' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='179' font-size='12' text-anchor='start' fill='#111'  >admin.example.com</text><rect x='480' y='42' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='59.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='75.0' text-anchor='middle' font-size='10.5' fill='#444'>app-service</text><path d='M580,62 L608,62' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='37' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='480' y='104' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='121.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='137.0' text-anchor='middle' font-size='10.5' fill='#444'>api-service</text><path d='M580,124 L608,124' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='99' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='480' y='166' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='183.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='199.0' text-anchor='middle' font-size='10.5' fill='#444'>admin-service</text><path d='M580,186 L608,186' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='161' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='169' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='190.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='169' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='190.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='169' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='190.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text></svg></figure><pre class="code" data-lang="yaml"><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: host-based-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-service
+                port:
+                  number: 80
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 80</code></pre></section>
+<section class="a-section" aria-labelledby="path"><h2 class="a-section__title" id="path">Pattern 2 — Path-based routing</h2><p class="a-section__note">Same domain, different URL paths go to different services.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 820 184' width='820' height='184' style='width:100%;height:auto;max-width:820px;display:block;margin:auto' role='img' aria-label='Path-based routing: one domain, each URL path goes to its own Service' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Path-based routing: one domain, each URL path goes to its own Service</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='70.0' width='100' height='44' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='70.0' y='96.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Client</text><rect x='160' y='70.0' width='100' height='44' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='210.0' y='96.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress</text><path d='M120,92.0 L158,92.0' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M260,92.0 L280,92.0' fill='none' stroke='#222' stroke-width='1.3'  /><path d='M280,92.0 L280,72 Q280,62 290,62 L478,62' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='55' font-size='12' text-anchor='start' fill='#111'  >example.com/app</text><path d='M280,92.0 L280,114 Q280,124 290,124 L478,124' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='117' font-size='12' text-anchor='start' fill='#111'  >example.com/api</text><rect x='480' y='42' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='59.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='75.0' text-anchor='middle' font-size='10.5' fill='#444'>app-service</text><path d='M580,62 L608,62' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='37' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='480' y='104' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='121.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='137.0' text-anchor='middle' font-size='10.5' fill='#444'>api-service</text><path d='M580,124 L608,124' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='99' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text></svg></figure><pre class="code" data-lang="yaml"><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: path-based-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /app
+            pathType: Prefix
+            backend:
+              service:
+                name: app-service
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 80</code></pre><div class="a-table-scroll"><table class="a-table"><caption class="a-visually-hidden">pathType options</caption><thead><tr><th scope="col">pathType</th><th scope="col">Does /api match…</th><th scope="col">Notes</th></tr></thead><tbody><tr><th scope="row"><code>Prefix</code></th><td><code>/api</code>, <code>/api/</code>, <code>/api/users</code></td><td>Most common</td></tr><tr><th scope="row"><code>Exact</code></th><td>Only <code>/api</code></td><td>Strict match</td></tr><tr><th scope="row"><code>ImplementationSpecific</code></th><td>Depends on the controller</td><td>Needed for regex paths in NGINX</td></tr></tbody></table></div><p class="a-section__note" style="margin-top:8px">Longest matching path wins: <code>/api/v2</code> beats <code>/api</code> beats <code>/</code>.</p></section>
+<section class="a-section" aria-labelledby="combined"><h2 class="a-section__title" id="combined">Host + path combined</h2><p class="a-section__note">One Ingress can mix both styles: some rules match a domain plus a path, others just a domain.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 820 308' width='820' height='308' style='width:100%;height:auto;max-width:820px;display:block;margin:auto' role='img' aria-label='Host and path routing combined on one Ingress' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Host and path routing combined on one Ingress</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='132.0' width='100' height='44' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='70.0' y='158.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Client</text><rect x='160' y='132.0' width='100' height='44' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='210.0' y='158.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress</text><path d='M120,154.0 L158,154.0' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M260,154.0 L280,154.0' fill='none' stroke='#222' stroke-width='1.3'  /><path d='M280,154.0 L280,72 Q280,62 290,62 L478,62' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='55' font-size='12' text-anchor='start' fill='#111'  >shop.example.com/cart</text><path d='M280,154.0 L280,134 Q280,124 290,124 L478,124' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='117' font-size='12' text-anchor='start' fill='#111'  >shop.example.com/orders</text><path d='M280,154.0 L280,176 Q280,186 290,186 L478,186' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='179' font-size='12' text-anchor='start' fill='#111'  >blog.example.com</text><path d='M280,154.0 L280,238 Q280,248 290,248 L478,248' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='296' y='241' font-size='12' text-anchor='start' fill='#111'  >docs.example.com</text><rect x='480' y='42' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='59.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='75.0' text-anchor='middle' font-size='10.5' fill='#444'>cart-service</text><path d='M580,62 L608,62' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='37' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='45' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='66.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='480' y='104' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='121.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='137.0' text-anchor='middle' font-size='10.5' fill='#444'>orders-service</text><path d='M580,124 L608,124' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='99' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='107' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='128.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='480' y='166' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='183.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='199.0' text-anchor='middle' font-size='10.5' fill='#444'>blog-service</text><path d='M580,186 L608,186' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='161' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='169' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='190.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='169' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='190.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='169' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='190.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='480' y='228' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='530.0' y='245.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='530.0' y='261.0' text-anchor='middle' font-size='10.5' fill='#444'>docs-service</text><path d='M580,248 L608,248' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='223' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='231' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='646.0' y='252.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='682' y='231' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='710.0' y='252.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='746' y='231' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='774.0' y='252.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text></svg></figure><pre class="code" data-lang="yaml"><code>spec:
+  ingressClassName: nginx
+  rules:
+    - host: shop.example.com
+      http:
+        paths:
+          - path: /cart
+            pathType: Prefix
+            backend: { service: { name: cart-service, port: { number: 80 } } }
+          - path: /orders
+            pathType: Prefix
+            backend: { service: { name: orders-service, port: { number: 80 } } }
+    - host: blog.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: blog-service, port: { number: 80 } } }
+    - host: docs.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: docs-service, port: { number: 80 } } }</code></pre></section>
+<section class="a-section" aria-labelledby="tls"><h2 class="a-section__title" id="tls">Enabling HTTPS with TLS</h2><p class="a-section__note">The controller holds the certificate and decrypts traffic; inside the cluster traffic usually continues as plain HTTP.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 920 240' width='920' height='240' style='width:100%;height:auto;max-width:920px;display:block;margin:auto' role='img' aria-label='TLS termination: HTTPS from client to Ingress, certificate from a TLS Secret, plain HTTP to Service and Pods' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>TLS termination: HTTPS from client to Ingress, certificate from a TLS Secret, plain HTTP to Service and Pods</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='250' y='20' width='655' height='205' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='260' y='38' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >Kubernetes cluster</text><rect x='20' y='60' width='110' height='46' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='75.0' y='80.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Client</text><text x='75.0' y='96.0' text-anchor='middle' font-size='10.5' fill='#444'>browser</text><rect x='300' y='60' width='170' height='46' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='385.0' y='80.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress Controller</text><text x='385.0' y='96.0' text-anchor='middle' font-size='10.5' fill='#444'>decrypts TLS here</text><rect x='560' y='63' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='610.0' y='80.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='610.0' y='96.0' text-anchor='middle' font-size='10.5' fill='#444'>app-service</text><rect x='690' y='58' width='200' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='698' y='66' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='726.0' y='87.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='762' y='66' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='790.0' y='87.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='826' y='66' width='56' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='854.0' y='87.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='300' y='160' width='170' height='46' rx='3' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='385.0' y='180.0' text-anchor='middle' font-size='13'  fill='#111'>Secret: my-tls-secret</text><text x='385.0' y='196.0' text-anchor='middle' font-size='10.5' fill='#444'>type: tls · cert + key</text><path d='M130,83 L298,83' fill='none' stroke='#222' stroke-width='2'  marker-end='url(#ah)'/><text x='214' y='73' font-size='12' text-anchor='middle' fill='#1E7B34' font-weight='600' >HTTPS :443 (encrypted)</text><path d='M470,83 L558,83' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='514' y='73' font-size='12' text-anchor='middle' fill='#444'  >HTTP :80</text><path d='M660,83 L688,83' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M385,160 L385,108' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><text x='395' y='140' font-size='11' text-anchor='start' fill='#555'  font-style='italic'>certificate</text></svg></figure><p class="a-prose"><strong>Step 1 — Create the TLS secret</strong></p><pre class="code" data-lang="bash"><code>kubectl create secret tls my-tls-secret \
+  --cert=cert.crt \
+  --key=key.key</code></pre><p class="a-prose"><strong>Step 2 — Reference it in the Ingress</strong></p><pre class="code" data-lang="yaml"><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: secure-ingress
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - example.com
+      secretName: my-tls-secret
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-service
+                port:
+                  number: 80</code></pre><div class="a-callout a-callout--decision"><p class="a-callout__title">Production tip</p>Use <strong>cert-manager</strong> with Let's Encrypt to issue and auto-renew certificates instead of creating secrets by hand.</div></section>
+<section class="a-section" aria-labelledby="install"><h2 class="a-section__title" id="install">Install the NGINX Ingress Controller</h2><p class="a-section__note">Ingress rules need a controller running in the cluster. NGINX is the most common choice.</p><pre class="code" data-lang="bash"><code>helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace
+
+# Public IP / hostname to point your DNS at
+kubectl get svc -n ingress-nginx ingress-nginx-controller</code></pre></section>
+<section class="a-section" aria-labelledby="prod"><h2 class="a-section__title" id="prod">Full production example (microservices)</h2><p class="a-section__note"><code>example.com</code> → frontend, <code>example.com/api</code> → backend, all over HTTPS with rate limiting.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 300' width='1000' height='300' style='width:100%;height:auto;max-width:1000px;display:block;margin:auto' role='img' aria-label='Production microservices: users to DNS and load balancer, NGINX Ingress over HTTPS, /api to backend, / to frontend' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Production microservices: users to DNS and load balancer, NGINX Ingress over HTTPS, /api to backend, / to frontend</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='270' y='15' width='715' height='270' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='280' y='33' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >Kubernetes cluster · namespace prod</text><rect x='20' y='128' width='100' height='44' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='70.0' y='154.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Users</text><rect x='150' y='128' width='100' height='44' rx='3' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='200.0' y='147.0' text-anchor='middle' font-size='13'  fill='#111'>DNS + LB</text><text x='200.0' y='163.0' text-anchor='middle' font-size='10.5' fill='#444'>example.com</text><rect x='300' y='122' width='160' height='56' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='380.0' y='147.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>NGINX Ingress</text><text x='380.0' y='163.0' text-anchor='middle' font-size='10.5' fill='#444'>TLS · rate limit · redirect</text><path d='M120,150 L148,150' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M250,150 L298,150' fill='none' stroke='#222' stroke-width='2'  marker-end='url(#ah)'/><text x='274' y='141' font-size='10.5' text-anchor='middle' fill='#1E7B34' font-weight='600' >HTTPS</text><path d='M460,150 L485,150' fill='none' stroke='#222' stroke-width='1.3'  /><path d='M485,150 L485,95 Q485,85 495,85 L640,85' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='501' y='78' font-size='12' text-anchor='start' fill='#111'  >example.com/api</text><path d='M485,150 L485,205 Q485,215 495,215 L640,215' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='501' y='208' font-size='12' text-anchor='start' fill='#111'  >example.com/</text><rect x='642' y='63' width='125' height='44' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='704.5' y='89.5' text-anchor='middle' font-size='13'  fill='#111'>backend-service</text><rect x='642' y='193' width='125' height='44' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='704.5' y='219.5' text-anchor='middle' font-size='13'  fill='#111'>frontend-service</text><path d='M767,85 L785,85' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M767,215 L785,215' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='787' y='60' width='188' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='795' y='68' width='52' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='821.0' y='89.5' text-anchor='middle' font-size='13'  fill='#111'>api</text><rect x='855' y='68' width='52' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='881.0' y='89.5' text-anchor='middle' font-size='13'  fill='#111'>api</text><rect x='915' y='68' width='52' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='941.0' y='89.5' text-anchor='middle' font-size='13'  fill='#111'>api</text><rect x='787' y='190' width='188' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='795' y='198' width='52' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='821.0' y='219.5' text-anchor='middle' font-size='13'  fill='#111'>web</text><rect x='855' y='198' width='52' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='881.0' y='219.5' text-anchor='middle' font-size='13'  fill='#111'>web</text><rect x='915' y='198' width='52' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='941.0' y='219.5' text-anchor='middle' font-size='13'  fill='#111'>web</text></svg></figure><pre class="code" data-lang="yaml"><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prod-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: &quot;true&quot;
+    nginx.ingress.kubernetes.io/limit-rps: &quot;10&quot;
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [example.com]
+      secretName: example-com-tls
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /api          # more specific first
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80</code></pre></section>
+<section class="a-section" aria-labelledby="adv"><h2 class="a-section__title" id="adv">Advanced features (NGINX annotations)</h2><p class="a-section__note">Pick a tab.</p><div>
+<div data-a-tabs role="tablist" class="a-toolbar a-no-print" aria-label="Advanced features" style="margin-bottom:10px">
+<button type="button" class="a-btn a-btn--outline" role="tab" id="t1" aria-controls="p1" aria-selected="true">Rewrite target</button>
+<button type="button" class="a-btn a-btn--outline" role="tab" id="t2" aria-controls="p2" aria-selected="false" tabindex="-1">Rate limiting</button>
+<button type="button" class="a-btn a-btn--outline" role="tab" id="t3" aria-controls="p3" aria-selected="false" tabindex="-1">Authentication</button>
+<button type="button" class="a-btn a-btn--outline" role="tab" id="t4" aria-controls="p4" aria-selected="false" tabindex="-1">Canary</button>
+</div>
+<div role="tabpanel" id="p1" aria-labelledby="t1">
+<p class="a-prose">Changes the URL before it reaches the backend — e.g. strip the <code>/api</code> prefix.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 130' width='900' height='130' style='width:100%;height:auto;max-width:900px;display:block;margin:auto' role='img' aria-label='Rewrite target: request /api/users is rewritten so the backend receives /users' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Rewrite target: request /api/users is rewritten so the backend receives /users</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='45' width='120' height='44' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='80.0' y='64.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Client</text><text x='80.0' y='80.0' text-anchor='middle' font-size='10.5' fill='#444'>GET /api/users</text><rect x='230' y='40' width='220' height='54' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='340.0' y='64.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress</text><text x='340.0' y='80.0' text-anchor='middle' font-size='10.5' fill='#444'>rewrite /api(/|$)(.*) → /$2</text><rect x='540' y='47' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='590.0' y='64.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='590.0' y='80.0' text-anchor='middle' font-size='10.5' fill='#444'>api-service</text><rect x='670' y='42' width='208' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='678' y='50' width='92' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='724.0' y='71.5' text-anchor='middle' font-size='13'  fill='#111'>GET /users</text><rect x='778' y='50' width='92' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='824.0' y='71.5' text-anchor='middle' font-size='13'  fill='#111'>GET /users</text><path d='M140,67 L228,67' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M450,67 L538,67' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M640,67 L668,67' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='495' y='58' font-size='12' text-anchor='middle' fill='#1E7B34' font-weight='600' >/users</text><text x='184' y='58' font-size='12' text-anchor='middle' fill='#444'  >/api/users</text></svg></figure>
+<pre class="code" data-lang="yaml"><code>metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: &quot;true&quot;
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 80</code></pre>
+<div class="a-callout a-callout--risk"><p class="a-callout__title">Gotcha</p>The article's <code>rewrite-target: /</code> sends <em>every</em> request to <code>/</code>. Use capture groups (above) to keep the rest of the path.</div>
+</div>
+<div role="tabpanel" id="p2" aria-labelledby="t2" hidden>
+<p class="a-prose">Caps requests per second per client IP to protect backends from spikes.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 860 200' width='860' height='200' style='width:100%;height:auto;max-width:860px;display:block;margin:auto' role='img' aria-label='Rate limiting: Ingress lets 10 requests per second through and rejects the rest with HTTP 503' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Rate limiting: Ingress lets 10 requests per second through and rejects the rest with HTTP 503</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='50' width='120' height='44' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='80.0' y='69.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Client</text><text x='80.0' y='85.0' text-anchor='middle' font-size='10.5' fill='#444'>50 req/s</text><rect x='250' y='45' width='170' height='54' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='335.0' y='69.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress</text><text x='335.0' y='85.0' text-anchor='middle' font-size='10.5' fill='#444'>limit-rps: &quot;10&quot;</text><rect x='530' y='52' width='100' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='580.0' y='76.5' text-anchor='middle' font-size='13'  fill='#111'>Service</text><rect x='660' y='47' width='144' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='668' y='55' width='60' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='698.0' y='76.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='736' y='55' width='60' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='766.0' y='76.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><path d='M140,72 L248,72' fill='none' stroke='#222' stroke-width='2.4'  marker-end='url(#ah)'/><text x='194' y='62' font-size='11.5' text-anchor='middle' fill='#444'  >all traffic</text><path d='M420,72 L528,72' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='474' y='62' font-size='11.5' text-anchor='middle' fill='#1E7B34' font-weight='600' >≤ 10 req/s ✔</text><path d='M630,72 L658,72' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M335,99 L335,150 L80,150 L80,96' fill='none' stroke='#C0392B' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ahr)'/><rect x='125' y='132' width='180' height='36' rx='3' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='215.0' y='154.5' text-anchor='middle' font-size='13'  fill='#111'>503 Too Many Requests</text></svg></figure>
+<pre class="code" data-lang="yaml"><code>nginx.ingress.kubernetes.io/limit-rps: &quot;10&quot;</code></pre>
+</div>
+<div role="tabpanel" id="p3" aria-labelledby="t3" hidden>
+<p class="a-prose"><strong>Basic auth</strong> — username/password stored in a Secret:</p>
+<pre class="code" data-lang="yaml"><code>nginx.ingress.kubernetes.io/auth-type: basic
+nginx.ingress.kubernetes.io/auth-secret: basic-auth
+nginx.ingress.kubernetes.io/auth-realm: &quot;Authentication Required&quot;</code></pre>
+<p class="a-prose"><strong>OAuth / SSO</strong> — delegate login to an external auth service such as oauth2-proxy:</p>
+<pre class="code" data-lang="yaml"><code>nginx.ingress.kubernetes.io/auth-url: &quot;https://auth.example.com/oauth2/auth&quot;
+nginx.ingress.kubernetes.io/auth-signin: &quot;https://auth.example.com/oauth2/start&quot;</code></pre>
+</div>
+<div role="tabpanel" id="p4" aria-labelledby="t4" hidden>
+<p class="a-prose">Send a small share of traffic to a new version, then raise it as confidence grows. Create a <strong>second</strong> Ingress for the same host and path, marked as canary.</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 860 220' width='860' height='220' style='width:100%;height:auto;max-width:860px;display:block;margin:auto' role='img' aria-label='Canary: 90 percent of traffic to stable v1 Pods, 10 percent to canary v2 Pods' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Canary: 90 percent of traffic to stable v1 Pods, 10 percent to canary v2 Pods</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='88' width='100' height='44' rx='3' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='70.0' y='114.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Client</text><rect x='160' y='83' width='140' height='54' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='230.0' y='107.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress</text><text x='230.0' y='123.0' text-anchor='middle' font-size='10.5' fill='#444'>canary-weight: 10</text><path d='M120,110 L158,110' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M300,110 L325,110' fill='none' stroke='#222' stroke-width='1.3'  /><path d='M325,110 L325,65 Q325,55 335,55 L478,55' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='341' y='48' font-size='12' text-anchor='start' fill='#111'  >90%  stable</text><path d='M325,110 L325,155 Q325,165 335,165 L478,165' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><text x='341' y='158' font-size='12' text-anchor='start' fill='#111'  >10%  canary</text><rect x='480' y='35' width='110' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='535.0' y='52.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='535.0' y='68.0' text-anchor='middle' font-size='10.5' fill='#444'>app-v1</text><rect x='480' y='145' width='110' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='535.0' y='162.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='535.0' y='178.0' text-anchor='middle' font-size='10.5' fill='#444'>app-v2</text><path d='M590,55 L608,55' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M590,165 L608,165' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='30' width='212' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='38' width='60' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='648.0' y='59.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='686' y='38' width='60' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='716.0' y='59.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='754' y='38' width='60' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='784.0' y='59.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='610' y='140' width='76' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='148' width='60' height='34' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='648.0' y='169.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text></svg></figure>
+<pre class="code" data-lang="yaml"><code>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-canary
+  annotations:
+    nginx.ingress.kubernetes.io/canary: &quot;true&quot;
+    nginx.ingress.kubernetes.io/canary-weight: &quot;10&quot;
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-v2
+                port:
+                  number: 80</code></pre>
+</div></div></section>
+<section class="a-section" aria-labelledby="compare"><h2 class="a-section__title" id="compare">Service vs Ingress</h2><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 280' width='1000' height='280' style='width:100%;height:auto;max-width:1000px;display:block;margin:auto' role='img' aria-label='Without Ingress each Service needs its own load balancer; with Ingress one load balancer serves all' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Without Ingress each Service needs its own load balancer; with Ingress one load balancer serves all</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='10' y='10' width='450' height='260' rx='8' fill='#F7F7FD' stroke='#C0392B' stroke-dasharray='6 4'/><text x='20' y='28' font-size='11.5' text-anchor='start' fill='#C0392B' font-weight='600' >Without Ingress — 3 load balancers, 3 public IPs</text><rect x='490' y='10' width='500' height='260' rx='8' fill='#F7F7FD' stroke='#1E7B34' stroke-dasharray='6 4'/><text x='500' y='28' font-size='11.5' text-anchor='start' fill='#1E7B34' font-weight='600' >With Ingress — 1 load balancer, 1 public IP</text><rect x='25' y='55' width='90' height='40' rx='3' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='70.0' y='79.5' text-anchor='middle' font-size='13'  fill='#111'>LB IP #1</text><rect x='145' y='55' width='95' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='192.5' y='72.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='192.5' y='88.0' text-anchor='middle' font-size='10.5' fill='#444'>app</text><path d='M115,75 L143,75' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M240,75 L262,75' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='264' y='50' width='182' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='272' y='58' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='297.0' y='79.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='330' y='58' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='355.0' y='79.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='388' y='58' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='413.0' y='79.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='25' y='127' width='90' height='40' rx='3' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='70.0' y='151.5' text-anchor='middle' font-size='13'  fill='#111'>LB IP #2</text><rect x='145' y='127' width='95' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='192.5' y='144.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='192.5' y='160.0' text-anchor='middle' font-size='10.5' fill='#444'>api</text><path d='M115,147 L143,147' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M240,147 L262,147' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='264' y='122' width='182' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='272' y='130' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='297.0' y='151.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='330' y='130' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='355.0' y='151.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='388' y='130' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='413.0' y='151.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='25' y='199' width='90' height='40' rx='3' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='70.0' y='223.5' text-anchor='middle' font-size='13'  fill='#111'>LB IP #3</text><rect x='145' y='199' width='95' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='192.5' y='216.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='192.5' y='232.0' text-anchor='middle' font-size='10.5' fill='#444'>admin</text><path d='M115,219 L143,219' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M240,219 L262,219' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='264' y='194' width='182' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='272' y='202' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='297.0' y='223.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='330' y='202' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='355.0' y='223.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='388' y='202' width='50' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='413.0' y='223.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='505' y='128' width='80' height='44' rx='3' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='545.0' y='154.5' text-anchor='middle' font-size='13'  fill='#111'>LB IP</text><rect x='610' y='125' width='90' height='50' rx='3' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='655.0' y='154.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ingress</text><path d='M585,150 L608,150' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M700,150 L715,150' fill='none' stroke='#222' stroke-width='1.3'  /><path d='M715,150 L715,85 Q715,75 725,75 L773,75' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><path d='M715,150 L773,150' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M715,150 L715,215 Q715,225 725,225 L773,225' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><rect x='775' y='55' width='85' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='817.5' y='72.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='817.5' y='88.0' text-anchor='middle' font-size='10.5' fill='#444'>app</text><path d='M860,75 L873,75' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='875' y='50' width='109' height='48' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='882' y='57' width='44' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='904.0' y='78.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='933' y='57' width='44' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='955.0' y='78.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='775' y='130' width='85' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='817.5' y='147.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='817.5' y='163.0' text-anchor='middle' font-size='10.5' fill='#444'>api</text><path d='M860,150 L873,150' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='875' y='125' width='109' height='48' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='882' y='132' width='44' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='904.0' y='153.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='933' y='132' width='44' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='955.0' y='153.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='775' y='205' width='85' height='40' rx='3' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='817.5' y='222.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='817.5' y='238.0' text-anchor='middle' font-size='10.5' fill='#444'>admin</text><path d='M860,225 L873,225' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='875' y='200' width='109' height='48' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='882' y='207' width='44' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='904.0' y='228.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='933' y='207' width='44' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='955.0' y='228.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text></svg></figure><div class="a-table-scroll"><table class="a-table"><caption class="a-visually-hidden">Service vs Ingress comparison</caption><thead><tr><th scope="col">Feature</th><th scope="col">Service (LoadBalancer / NodePort)</th><th scope="col">Ingress</th></tr></thead><tbody><tr><th scope="row">OSI layer</th><td>L4 (TCP/UDP)</td><td>L7 (HTTP/HTTPS)</td></tr><tr><th scope="row">Routing</th><td>Basic: port → pods</td><td>Advanced: host, path, headers</td></tr><tr><th scope="row">SSL/TLS termination</th><td>No</td><td>Yes</td></tr><tr><th scope="row">Domain-based routing</th><td>No</td><td>Yes</td></tr><tr><th scope="row">Public IPs</th><td>One per service</td><td>One for all</td></tr><tr><th scope="row">Cost</th><td>Higher (many LBs)</td><td>Lower (one LB)</td></tr></tbody></table></div></section>
+<section class="a-section" aria-labelledby="checklist"><h2 class="a-section__title" id="checklist">Production checklist</h2><ul class="steps">
+<li>Set <code>ingressClassName</code> explicitly, especially with multiple controllers.</li>
+<li>Automate TLS with cert-manager; force HTTPS with <code>ssl-redirect</code>.</li>
+<li>Run 2+ controller replicas with a PodDisruptionBudget.</li>
+<li>Add rate limits and auth on sensitive paths.</li>
+<li>Order paths from most to least specific (<code>/api/v2</code>, <code>/api</code>, <code>/</code>).</li>
+<li>Scrape controller metrics with Prometheus and keep access logs.</li>
+<li>For new platforms, also evaluate <strong>Gateway API</strong>, the successor to Ingress.</li></ul><details class="a-disclosure"><summary>Handy kubectl commands</summary><pre class="code" data-lang="bash"><code>kubectl get ingress -A                       # list all ingresses
+kubectl describe ingress prod-ingress        # rules, backends, events
+kubectl get ingressclass                     # which controllers exist
+kubectl logs -n ingress-nginx deploy/ingress-nginx-controller
+curl -H &quot;Host: example.com&quot; http://&lt;LB-IP&gt;/api   # test before DNS is ready</code></pre></details></section>
+<section class="a-section" aria-labelledby="summary"><h2 class="a-section__title" id="summary">Summary</h2><div class="a-callout a-callout--decision"><p class="a-callout__title">Ingress is the gateway to your cluster</p>One IP → smart routing by host and path → HTTPS in one place → canary, auth and rate limits on top.</div></section>
+
+      <footer class="a-footnote">Based on "Kubernetes Ingress — Advanced Routing Deep Dive (With Diagrams &amp; Production Patterns)" on blog.devops.dev, simplified and extended with ingressClassName, pathType, rewrite capture groups, auth and canary examples. Annotations shown are for the community ingress-nginx controller.</footer>
+    </main>
+    <script>
+/* Devin artifact kit — self-contained behavior for standalone HTML artifacts.
+   No build step, no imports, no network calls. Every widget is progressive
+   enhancement: the markup stays readable and printable with scripting off. */
+(function () {
+  "use strict";
+
+  var root = document.documentElement;
+  var THEMES = { light: 1, dark: 1 };
+
+  function showError(message) {
+    document.querySelectorAll("[data-a-error]").forEach(function (region) {
+      region.hidden = false;
+      var detail = region.querySelector("[data-a-error-detail]");
+      if (detail && message) detail.textContent = message;
+    });
+  }
+
+  window.addEventListener("error", function (event) {
+    showError(event.message);
+  });
+  window.addEventListener("unhandledrejection", function (event) {
+    showError(String(event.reason || "An interactive control failed."));
+  });
+
+  /* ---------- theme ----------
+     Order of precedence:
+       1. an explicit host signal (`?theme=`/`#theme=`, a `devin:theme`
+          message from an embedding page, or a preset `data-theme`),
+       2. a reader's in-document choice,
+       3. the OS/browser preference via `prefers-color-scheme`.
+     Hosts that expose no signal simply fall through to step 3. */
+  function hostTheme() {
+    var search = new URLSearchParams(
+      window.location.search + "&" + window.location.hash.replace(/^#/, "")
+    );
+    var fromUrl = search.get("theme");
+    if (fromUrl && THEMES[fromUrl]) return fromUrl;
+    var preset = root.getAttribute("data-theme");
+    if (preset && THEMES[preset]) return preset;
+    return null;
+  }
+
+  function systemTheme() {
+    return window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  var pinned = hostTheme();
+
+  function apply(theme) {
+    root.setAttribute("data-theme", theme);
+    document.querySelectorAll("[data-a-theme-toggle]").forEach(function (el) {
+      var label =
+        theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+      el.setAttribute("aria-label", label);
+      el.setAttribute("title", label);
+    });
+  }
+
+  apply(pinned || systemTheme());
+
+  if (window.matchMedia) {
+    var media = window.matchMedia("(prefers-color-scheme: dark)");
+    var onChange = function () {
+      if (!pinned) apply(systemTheme());
+    };
+    if (media.addEventListener) media.addEventListener("change", onChange);
+    else if (media.addListener) media.addListener(onChange);
+  }
+
+  window.addEventListener("message", function (event) {
+    if (window.parent === window || event.source !== window.parent) return;
+    var data = event.data;
+    if (!data || data.type !== "devin:theme" || !THEMES[data.theme]) return;
+    pinned = data.theme;
+    apply(pinned);
+  });
+
+  document.addEventListener("click", function (event) {
+    var toggle = event.target.closest("[data-a-theme-toggle]");
+    if (!toggle) return;
+    pinned = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    apply(pinned);
+  });
+
+  /* ---------- tabs ----------
+     <div data-a-tabs role="tablist">
+       <button class="a-btn" role="tab" aria-controls="panel-id">Label</button>
+     Panels are plain elements toggled with `hidden`, so print reveals the
+     active one and `.a-print-reveal` can opt others in. */
+  function selectTab(list, tab) {
+    list.querySelectorAll('[role="tab"]').forEach(function (candidate) {
+      var selected = candidate === tab;
+      candidate.setAttribute("aria-selected", String(selected));
+      candidate.tabIndex = selected ? 0 : -1;
+      var panel = document.getElementById(
+        candidate.getAttribute("aria-controls") || ""
+      );
+      if (panel) panel.hidden = !selected;
+    });
+  }
+
+  document.querySelectorAll("[data-a-tabs]").forEach(function (list) {
+    var tabs = Array.prototype.slice.call(
+      list.querySelectorAll('[role="tab"]')
+    );
+    if (!tabs.length) return;
+    var active =
+      tabs.filter(function (t) {
+        return t.getAttribute("aria-selected") === "true";
+      })[0] || tabs[0];
+    selectTab(list, active);
+
+    list.addEventListener("click", function (event) {
+      var tab = event.target.closest('[role="tab"]');
+      if (tab) selectTab(list, tab);
+    });
+
+    list.addEventListener("keydown", function (event) {
+      var step =
+        event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      event.preventDefault();
+      var current = tabs.indexOf(document.activeElement);
+      var next = tabs[(current + step + tabs.length) % tabs.length];
+      next.focus();
+      selectTab(list, next);
+    });
+  });
+
+  /* ---------- row filters ----------
+     <select data-a-filter="#table-id" data-a-filter-key="team">
+     Rows opt in with a matching `data-team` attribute; "all" clears it. */
+  document.querySelectorAll("[data-a-filter]").forEach(function (control) {
+    var target = document.querySelector(control.getAttribute("data-a-filter"));
+    var key = control.getAttribute("data-a-filter-key") || "filter";
+    if (!target) return;
+
+    var emptySelector = control.getAttribute("data-a-filter-empty");
+    var empty = emptySelector ? document.querySelector(emptySelector) : null;
+
+    var applyFilter = function () {
+      var value = control.value;
+      var shown = 0;
+      /* Re-read the rows every time: a script may have replaced them since
+         the last pass, and those rows must obey the current selection too. */
+      target.querySelectorAll("[data-" + key + "]").forEach(function (row) {
+        var match = value === "all" || row.getAttribute("data-" + key) === value;
+        row.hidden = !match;
+        if (match) shown += 1;
+      });
+      if (empty) empty.hidden = shown !== 0;
+      target.hidden = shown === 0 && !!empty;
+    };
+
+    control.addEventListener("change", applyFilter);
+    applyFilter();
+
+    /* Rows swapped in by a script are filtered as soon as they land, so a
+       redraw never shows rows the current selection excludes. Only childList
+       is watched, so the `hidden` writes above cannot retrigger this. */
+    new MutationObserver(function () {
+      applyFilter();
+    }).observe(target, { childList: true, subtree: true });
+  });
+
+  /* ---------- pinned columns ----------
+     <table class="a-table" data-a-sticky-columns="2">
+     CSS pins the first column on its own. The kit measures the leading
+     columns so every pinned cell gets its cumulative `--a-sticky-left`, and
+     re-measures when the table resizes, its rows change, or a filter hides
+     rows. Cells spanning past the last pinned column stay unpinned. The
+     scroll wrapper carries `data-a-scrolled` while the table is scrolled
+     sideways, so the divider only shows with columns underneath it. */
+  function stickyCount(table) {
+    var count = parseInt(table.getAttribute("data-a-sticky-columns"), 10);
+    return count > 0 ? count : 0;
+  }
+
+  function layoutSticky(table) {
+    var count = stickyCount(table);
+    var pinned = [];
+    var widths = [];
+    var columns = 0;
+    /* Rows spanned into from above shift where later cells start. */
+    var carried = [];
+    Array.prototype.forEach.call(table.rows, function (row, index) {
+      var taken = carried[index] || [];
+      var column = 0;
+      Array.prototype.forEach.call(row.cells, function (cell) {
+        while (taken[column]) column += 1;
+        var end = column + Math.max(1, cell.colSpan || 1);
+        if (end <= count) {
+          pinned.push({ cell: cell, start: column, end: end });
+          /* Hidden rows measure 0, so a later visible row fills the gap. */
+          if (end === column + 1 && !widths[column]) {
+            widths[column] = cell.getBoundingClientRect().width;
+          }
+        }
+        for (var below = 1; below < (cell.rowSpan || 1); below += 1) {
+          var next = (carried[index + below] = carried[index + below] || []);
+          for (var spanned = column; spanned < end; spanned += 1) {
+            next[spanned] = true;
+          }
+        }
+        column = end;
+        columns = Math.max(columns, end);
+      });
+    });
+
+    var edge = Math.min(count, columns);
+    var offsets = [0];
+    for (var position = 1; position < edge; position += 1) {
+      /* Not rendered yet (a closed disclosure or hidden tab): keep the last
+         layout and measure again once the table has a size. */
+      if (!widths[position - 1]) return;
+      offsets[position] = offsets[position - 1] + widths[position - 1];
+    }
+
+    var keep = new Set();
+    pinned.forEach(function (entry) {
+      keep.add(entry.cell);
+      entry.cell.setAttribute("data-a-sticky", entry.end === edge ? "edge" : "");
+      entry.cell.style.setProperty(
+        "--a-sticky-left",
+        offsets[entry.start] + "px"
+      );
+    });
+    table.querySelectorAll("[data-a-sticky]").forEach(function (cell) {
+      if (keep.has(cell)) return;
+      cell.removeAttribute("data-a-sticky");
+      cell.style.removeProperty("--a-sticky-left");
+    });
+    if (count) table.setAttribute("data-a-sticky-ready", "");
+    else table.removeAttribute("data-a-sticky-ready");
+  }
+
+  document
+    .querySelectorAll(".a-table[data-a-sticky-columns]")
+    .forEach(function (table) {
+      var queued = false;
+      var schedule = function () {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(function () {
+          queued = false;
+          layoutSticky(table);
+        });
+      };
+      layoutSticky(table);
+      if (window.ResizeObserver) new ResizeObserver(schedule).observe(table);
+      /* Only structure and content are watched, so the kit's own
+         `data-a-sticky` and offset writes cannot retrigger this. */
+      new MutationObserver(schedule).observe(table, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["hidden", "colspan", "rowspan", "data-a-sticky-columns"]
+      });
+
+      /* The wrapper element survives a chart moving it into its "Data
+         table" disclosure, so the listener does too. */
+      var scroller = table.closest(".a-table-scroll");
+      if (!scroller) return;
+      var syncScrolled = function () {
+        scroller.toggleAttribute("data-a-scrolled", scroller.scrollLeft > 0);
+      };
+      scroller.addEventListener("scroll", syncScrolled, { passive: true });
+      syncScrolled();
+    });
+
+  /* ---------- tooltips ----------
+     One shared tooltip serves every chart and any element carrying
+     `data-a-tip`. Pointer, keyboard focus, and touch all route through the
+     same show/hide pair, so an exact value is never hover-only. */
+  var tipEl = null;
+  var tipRelease = null;
+  var tipHost = null;
+
+  function tipNode() {
+    if (tipEl) return tipEl;
+    tipEl = document.createElement("div");
+    tipEl.className = "a-tip a-no-print";
+    tipEl.setAttribute("role", "tooltip");
+    tipEl.hidden = true;
+    document.body.appendChild(tipEl);
+    return tipEl;
+  }
+
+  function hideTip() {
+    var release = tipRelease;
+    tipRelease = null;
+    tipHost = null;
+    if (release) release();
+    if (tipEl) tipEl.hidden = true;
+  }
+
+  function positionTip(anchor, pointer) {
+    var el = tipNode();
+    var width = el.offsetWidth;
+    var height = el.offsetHeight;
+    var edge = 8;
+    var x = pointer ? pointer.x + 14 : anchor.left + anchor.width / 2 - width / 2;
+    var y = pointer ? pointer.y - height - 16 : anchor.top - height - 10;
+    if (y < edge) y = pointer ? pointer.y + 22 : anchor.bottom + 10;
+    x = Math.max(edge, Math.min(x, window.innerWidth - width - edge));
+    y = Math.max(edge, Math.min(y, window.innerHeight - height - edge));
+    el.style.transform =
+      "translate(" + Math.round(x) + "px, " + Math.round(y) + "px)";
+  }
+
+  function tipRow(row) {
+    var line = document.createElement("div");
+    line.className =
+      "a-tip__row" + (row.series ? " a-series-" + row.series : "");
+    if (row.series) {
+      var swatch = document.createElement("span");
+      swatch.className = "a-tip__swatch";
+      line.appendChild(swatch);
+    }
+    var name = document.createElement("span");
+    name.className = "a-tip__name";
+    name.textContent = row.name || "";
+    line.appendChild(name);
+    var value = document.createElement("span");
+    value.className = "a-tip__value";
+    value.textContent = row.value == null || row.value === "" ? "—" : row.value;
+    line.appendChild(value);
+    return line;
+  }
+
+  /* `content` is { title, text, rows: [{ name, value, series }] }. `release`
+     runs when the tooltip is replaced or dismissed so the owner can drop its
+     highlight state. */
+  function showTip(content, host, anchor, pointer, release) {
+    if (tipRelease && tipRelease !== release) {
+      var previous = tipRelease;
+      tipRelease = null;
+      previous();
+    }
+    tipRelease = release || null;
+    tipHost = host || null;
+    var el = tipNode();
+    el.textContent = "";
+    if (content.title) {
+      var title = document.createElement("div");
+      title.className = "a-tip__title";
+      title.textContent = content.title;
+      el.appendChild(title);
+    }
+    if (content.text) {
+      var text = document.createElement("div");
+      text.className = "a-tip__text";
+      text.textContent = content.text;
+      el.appendChild(text);
+    }
+    (content.rows || []).forEach(function (row) {
+      el.appendChild(tipRow(row));
+    });
+    el.hidden = false;
+    positionTip(anchor, pointer);
+  }
+
+  /* Escape hatch for hand-authored marks: `data-a-tip` holds the value text
+     and the optional `data-a-tip-title` holds a heading. */
+  function annotatedHost(node) {
+    return node && node.closest ? node.closest("[data-a-tip]") : null;
+  }
+
+  function showAnnotatedTip(host, pointer) {
+    showTip(
+      {
+        title: host.getAttribute("data-a-tip-title") || "",
+        text: host.getAttribute("data-a-tip") || ""
+      },
+      host,
+      host.getBoundingClientRect(),
+      pointer,
+      null
+    );
+  }
+
+  document.addEventListener("pointerover", function (event) {
+    var host = annotatedHost(event.target);
+    if (!host) return;
+    showAnnotatedTip(
+      host,
+      event.pointerType === "touch" ? null : { x: event.clientX, y: event.clientY }
+    );
+  });
+
+  document.addEventListener("pointermove", function (event) {
+    if (!tipHost || event.pointerType === "touch") return;
+    if (!tipHost.hasAttribute || !tipHost.hasAttribute("data-a-tip")) return;
+    if (annotatedHost(event.target) !== tipHost) return;
+    positionTip(tipHost.getBoundingClientRect(), {
+      x: event.clientX,
+      y: event.clientY
+    });
+  });
+
+  document.addEventListener("pointerout", function (event) {
+    var host = annotatedHost(event.target);
+    if (!host || host !== tipHost) return;
+    if (event.relatedTarget && host.contains(event.relatedTarget)) return;
+    hideTip();
+  });
+
+  document.addEventListener("focusin", function (event) {
+    var host = annotatedHost(event.target);
+    if (host) showAnnotatedTip(host, null);
+  });
+
+  document.addEventListener("focusout", function (event) {
+    var host = annotatedHost(event.target);
+    if (!host || host !== tipHost) return;
+    /* A still-hovered mark keeps its tooltip; `pointerout` closes that one. */
+    if (host.matches && host.matches(":hover")) return;
+    hideTip();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") hideTip();
+  });
+
+  window.addEventListener("scroll", hideTip, true);
+  window.addEventListener("resize", hideTip);
+
+  /* ---------- charts ----------
+     <figure class="a-figure" data-a-chart="bar|stacked-bar|line"> wrapping a
+     plain <table> of the same numbers. The table is both the data source and
+     the no-script fallback: the kit draws the chart from it and then keeps it
+     under a disclosure as the exact-value equivalent. Each category gets a
+     hover band that also takes keyboard focus, so pointer, arrow keys, and
+     tap all produce the same readout. */
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var CHART_WIDTH = 640;
+  var CHART_TYPES = { bar: 1, "stacked-bar": 1, line: 1 };
+
+  function svgNode(name, attrs) {
+    var node = document.createElementNS(SVG_NS, name);
+    Object.keys(attrs || {}).forEach(function (key) {
+      node.setAttribute(key, String(attrs[key]));
+    });
+    return node;
+  }
+
+  /* `data-value` wins so cells can stay human-readable ("1,284", "18m 24s"). */
+  function cellNumber(cell) {
+    var explicit = cell.getAttribute("data-value");
+    var text = (explicit === null ? cell.textContent : explicit) || "";
+    var match = text
+      .replace(/\u2212/g, "-")
+      .replace(/,/g, "")
+      .match(/-?\d*\.?\d+/);
+    return match ? parseFloat(match[0]) : null;
+  }
+
+  function readChartTable(table) {
+    var headCells = table.querySelectorAll("thead th");
+    if (headCells.length < 2) return null;
+    var series = [];
+    for (var column = 1; column < headCells.length; column += 1) {
+      series.push(headCells[column].textContent.trim());
+    }
+    var categories = [];
+    table.querySelectorAll("tbody tr").forEach(function (row) {
+      var cells = row.children;
+      if (cells.length < 2) return;
+      /* A hidden row is filtered out, so the chart matches what is listed. */
+      if (row.hidden || row.hasAttribute("data-a-excluded")) return;
+      var point = {
+        label: cells[0].textContent.trim(),
+        row: row,
+        values: [],
+        texts: []
+      };
+      series.forEach(function (name, position) {
+        var cell = cells[position + 1];
+        point.values.push(cell ? cellNumber(cell) : null);
+        point.texts.push(cell ? cell.textContent.trim() : "");
+      });
+      categories.push(point);
+    });
+    return categories.length
+      ? { series: series, categories: categories }
+      : null;
+  }
+
+  function niceCeil(value) {
+    if (!(value > 0)) return 1;
+    var magnitude = Math.pow(10, Math.floor(Math.log(value) / Math.LN10));
+    var steps = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
+    for (var i = 0; i < steps.length; i += 1) {
+      if (value <= steps[i] * magnitude) return steps[i] * magnitude;
+    }
+    return 10 * magnitude;
+  }
+
+  function formatTick(value) {
+    var size = Math.abs(value);
+    if (size >= 1000000) {
+      return (value / 1000000).toFixed(size % 1000000 ? 1 : 0) + "M";
+    }
+    if (size >= 1000) return (value / 1000).toFixed(size % 1000 ? 1 : 0) + "k";
+    return String(Math.round(value * 100) / 100);
+  }
+
+  /* Per-figure render state so a chart can be drawn more than once: the
+     nodes from the previous pass are thrown away and rebuilt from whatever
+     the table says now. */
+  var chartState = new WeakMap();
+
+  function chartTable(figure) {
+    var details = figure.querySelector(".a-chart__data");
+    return (details || figure).querySelector("table");
+  }
+
+  /* The table is the source of truth, so any change to it — a filter hiding
+     rows, new rows, an edited cell — redraws the chart on its own. */
+  function watchChartTable(figure, state) {
+    if (state.observer) return;
+    var queued = false;
+    state.observer = new MutationObserver(function () {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () {
+        queued = false;
+        renderChart(figure);
+      });
+    });
+    /* Watching the disclosure rather than the table keeps the chart live even
+       when a script replaces the whole <table>. */
+    state.observer.observe(state.details, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["hidden", "data-a-excluded", "data-value"]
+    });
+  }
+
+  function renderChart(figure) {
+    var type = figure.getAttribute("data-a-chart");
+    var table = chartTable(figure);
+    if (!CHART_TYPES[type] || !table) return;
+
+    var state = chartState.get(figure);
+    if (!state) {
+      state = { nodes: [], details: null, observer: null, focused: null };
+      chartState.set(figure, state);
+    }
+
+    /* Keeping the reader's place: a re-render restores keyboard focus to the
+       same category when it survives. */
+    var hadFocus = state.nodes.some(function (node) {
+      return node.contains(document.activeElement);
+    });
+    var refocus = hadFocus ? state.focused : null;
+    if (tipHost && figure.contains(tipHost)) hideTip();
+    state.nodes.forEach(function (node) {
+      if (node.parentNode) node.parentNode.removeChild(node);
+    });
+    state.nodes = [];
+
+    if (!state.details) {
+      var source = table.closest(".a-table-scroll") || table;
+      var details = document.createElement("details");
+      details.className = "a-disclosure a-chart__data";
+      var summary = document.createElement("summary");
+      summary.textContent = "Data table";
+      details.appendChild(summary);
+      source.parentNode.insertBefore(details, source);
+      details.appendChild(source);
+      state.details = details;
+    }
+    watchChartTable(figure, state);
+
+    var data = readChartTable(table);
+    if (!data) {
+      var empty = document.createElement("p");
+      empty.className = "a-chart__empty";
+      empty.textContent =
+        figure.getAttribute("data-a-chart-empty") ||
+        "No data for this selection.";
+      figure.insertBefore(empty, state.details);
+      state.nodes.push(empty);
+      state.focused = null;
+      return;
+    }
+
+    var stacked = type === "stacked-bar";
+    var isLine = type === "line";
+    var height = parseFloat(figure.getAttribute("data-a-chart-height")) || 220;
+    var unit = figure.getAttribute("data-a-chart-unit") || "";
+    var tickUnit = unit.length <= 2 ? unit : "";
+    var pad = { top: 14, right: 14, bottom: 30, left: 46 };
+    var plotWidth = CHART_WIDTH - pad.left - pad.right;
+    var plotHeight = height - pad.top - pad.bottom;
+    var bandWidth = plotWidth / data.categories.length;
+
+    var high = 0;
+    var low = 0;
+    data.categories.forEach(function (point) {
+      var sum = 0;
+      point.values.forEach(function (value) {
+        if (value === null) return;
+        sum += value > 0 ? value : 0;
+        low = Math.min(low, value);
+        if (!stacked) high = Math.max(high, value);
+      });
+      if (stacked) high = Math.max(high, sum);
+    });
+    var declaredMax = parseFloat(figure.getAttribute("data-a-chart-max"));
+    var maxY = isFinite(declaredMax) ? declaredMax : niceCeil(high);
+    var minY = low < 0 ? -niceCeil(-low) : 0;
+    var span = maxY - minY || 1;
+
+    var scaleY = function (value) {
+      return pad.top + ((maxY - value) / span) * plotHeight;
+    };
+    var centerX = function (index) {
+      return pad.left + bandWidth * (index + 0.5);
+    };
+    var describe = function (index) {
+      var point = data.categories[index];
+      return (
+        point.label +
+        ": " +
+        data.series
+          .map(function (name, position) {
+            return name + " " + (point.texts[position] || "no value");
+          })
+          .join(", ")
+      );
+    };
+
+    var caption = figure.querySelector("figcaption");
+    var svg = svgNode("svg", {
+      class: "a-chart",
+      viewBox: "0 0 " + CHART_WIDTH + " " + height,
+      role: "group",
+      "aria-label":
+        (figure.getAttribute("data-a-chart-label") ||
+          (caption ? caption.textContent.trim() : "Chart")) +
+        ". Use the arrow keys to read each value."
+    });
+
+    var grid = svgNode("g", { class: "a-chart__grid" });
+    var axis = svgNode("g", { class: "a-chart__axis" });
+    for (var tick = 0; tick <= 4; tick += 1) {
+      var value = minY + (span * tick) / 4;
+      var y = scaleY(value);
+      grid.appendChild(
+        svgNode("line", {
+          x1: pad.left,
+          y1: y,
+          x2: CHART_WIDTH - pad.right,
+          y2: y
+        })
+      );
+      var tickLabel = svgNode("text", {
+        x: pad.left - 8,
+        y: y + 3.5,
+        "text-anchor": "end"
+      });
+      tickLabel.textContent = formatTick(value) + tickUnit;
+      axis.appendChild(tickLabel);
+    }
+
+    var labelStep = Math.ceil(data.categories.length / 8);
+    data.categories.forEach(function (point, index) {
+      if (index % labelStep) return;
+      var text = svgNode("text", {
+        x: centerX(index),
+        y: height - 10,
+        "text-anchor": "middle"
+      });
+      text.textContent = point.label;
+      axis.appendChild(text);
+    });
+
+    var plot = svgNode("g", { class: "a-chart__plot" });
+    /* Past ~30 points a marker per category reads as a scatter plot instead
+       of a line, so dense series drop to a bare stroke and only the active
+       point is drawn (CSS gives it a radius again). */
+    var pointRadius = data.categories.length > 30 ? 0 : 2.75;
+    if (isLine) {
+      data.series.forEach(function (name, position) {
+        /* A missing value breaks the line rather than bridging the gap. */
+        var segments = [[]];
+        data.categories.forEach(function (point, index) {
+          var value = point.values[position];
+          if (value === null) {
+            if (segments[segments.length - 1].length) segments.push([]);
+            return;
+          }
+          segments[segments.length - 1].push(
+            centerX(index) + "," + scaleY(value)
+          );
+          plot.appendChild(
+            svgNode("circle", {
+              class: "a-chart__point a-series-" + (position + 1),
+              cx: centerX(index),
+              cy: scaleY(value),
+              r: pointRadius,
+              "data-a-index": index
+            })
+          );
+        });
+        segments.forEach(function (coordinates) {
+          if (!coordinates.length) return;
+          plot.insertBefore(
+            svgNode("polyline", {
+              class: "a-chart__series a-series-" + (position + 1),
+              points: coordinates.join(" ")
+            }),
+            plot.firstChild
+          );
+        });
+      });
+    } else {
+      var inset = bandWidth * 0.18;
+      var slot = (bandWidth - inset * 2) / (stacked ? 1 : data.series.length);
+      var baseline = scaleY(Math.max(minY, 0));
+      data.categories.forEach(function (point, index) {
+        var stackTop = 0;
+        data.series.forEach(function (name, position) {
+          var value = point.values[position];
+          if (value === null) return;
+          var from = baseline;
+          var to;
+          if (stacked) {
+            from = scaleY(stackTop);
+            stackTop += value;
+            to = scaleY(stackTop);
+          } else {
+            to = scaleY(value);
+          }
+          plot.appendChild(
+            svgNode("rect", {
+              class: "a-chart__bar a-series-" + (position + 1),
+              x:
+                pad.left +
+                bandWidth * index +
+                inset +
+                slot * (stacked ? 0 : position),
+              y: Math.min(from, to),
+              width: Math.max(1, slot - 2),
+              height: Math.max(1, Math.abs(to - from)),
+              rx: 2,
+              "data-a-index": index
+            })
+          );
+        });
+      });
+    }
+
+    var crosshair = svgNode("line", {
+      class: "a-chart__crosshair",
+      x1: pad.left,
+      x2: pad.left,
+      y1: pad.top,
+      y2: pad.top + plotHeight,
+      hidden: "hidden"
+    });
+
+    var overlay = svgNode("g", { class: "a-chart__bands" });
+    var bands = data.categories.map(function (point, index) {
+      var band = svgNode("rect", {
+        class: "a-chart__band",
+        x: pad.left + bandWidth * index,
+        y: pad.top,
+        width: bandWidth,
+        height: plotHeight,
+        tabindex: index === 0 ? 0 : -1,
+        role: "img",
+        "aria-label": describe(index)
+      });
+      overlay.appendChild(band);
+      return band;
+    });
+
+    svg.appendChild(grid);
+    svg.appendChild(axis);
+    svg.appendChild(plot);
+    svg.appendChild(crosshair);
+    svg.appendChild(overlay);
+
+    figure.insertBefore(svg, state.details);
+    state.nodes.push(svg);
+
+    if (data.series.length > 1) {
+      var legend = document.createElement("ul");
+      legend.className = "a-legend";
+      data.series.forEach(function (name, position) {
+        var item = document.createElement("li");
+        item.className = "a-series-" + (position + 1);
+        var swatch = document.createElement("span");
+        swatch.className = "a-legend__swatch";
+        item.appendChild(swatch);
+        item.appendChild(document.createTextNode(name));
+        legend.appendChild(item);
+      });
+      figure.insertBefore(legend, state.details);
+      state.nodes.push(legend);
+    }
+
+    var readout = document.createElement("p");
+    readout.className = "a-visually-hidden";
+    readout.setAttribute("aria-live", "polite");
+    figure.appendChild(readout);
+    state.nodes.push(readout);
+
+    var clear = function () {
+      bands.forEach(function (band) {
+        band.removeAttribute("data-a-active");
+      });
+      plot.querySelectorAll("[data-a-index]").forEach(function (mark) {
+        mark.removeAttribute("data-a-active");
+      });
+      crosshair.setAttribute("hidden", "hidden");
+      readout.textContent = "";
+    };
+
+    var activate = function (index, pointer) {
+      if (index < 0 || index >= bands.length) return;
+      clear();
+      bands[index].setAttribute("data-a-active", "true");
+      plot
+        .querySelectorAll('[data-a-index="' + index + '"]')
+        .forEach(function (mark) {
+          mark.setAttribute("data-a-active", "true");
+        });
+      if (isLine) {
+        crosshair.setAttribute("x1", centerX(index));
+        crosshair.setAttribute("x2", centerX(index));
+        crosshair.removeAttribute("hidden");
+      }
+      readout.textContent = describe(index);
+      showTip(
+        {
+          title: data.categories[index].label,
+          rows: data.series.map(function (name, position) {
+            return {
+              name: name,
+              value: data.categories[index].texts[position],
+              series: position + 1
+            };
+          })
+        },
+        bands[index],
+        bands[index].getBoundingClientRect(),
+        pointer,
+        clear
+      );
+    };
+
+    /* -1 outside the plot area, so the axis and margins read as no category. */
+    var indexAt = function (clientX) {
+      var box = svg.getBoundingClientRect();
+      if (!box.width) return -1;
+      var local = ((clientX - box.left) / box.width) * CHART_WIDTH;
+      if (local < pad.left || local > pad.left + plotWidth) return -1;
+      var index = Math.floor((local - pad.left) / bandWidth);
+      return Math.max(0, Math.min(data.categories.length - 1, index));
+    };
+
+    svg.addEventListener("pointermove", function (event) {
+      if (event.pointerType === "touch") return;
+      var index = indexAt(event.clientX);
+      if (index === -1) {
+        if (bands.indexOf(document.activeElement) === -1) hideTip();
+        return;
+      }
+      activate(index, { x: event.clientX, y: event.clientY });
+    });
+
+    svg.addEventListener("pointerdown", function (event) {
+      if (event.pointerType !== "touch") return;
+      activate(indexAt(event.clientX), null);
+    });
+
+    /* Touch leaves as soon as the finger lifts, so a tap keeps its readout. */
+    svg.addEventListener("pointerleave", function (event) {
+      if (event.pointerType === "touch") return;
+      if (bands.indexOf(document.activeElement) === -1) hideTip();
+    });
+
+    bands.forEach(function (band, index) {
+      band.addEventListener("focus", function () {
+        state.focused = {
+          index: index,
+          row: data.categories[index].row,
+          label: data.categories[index].label
+        };
+        activate(index, null);
+      });
+      band.addEventListener("blur", function () {
+        if (tipHost === band) hideTip();
+      });
+    });
+
+    svg.addEventListener("keydown", function (event) {
+      var current = bands.indexOf(document.activeElement);
+      if (current === -1) return;
+      var next = current;
+      if (event.key === "ArrowRight") next = current + 1;
+      else if (event.key === "ArrowLeft") next = current - 1;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = bands.length - 1;
+      else return;
+      event.preventDefault();
+      next = Math.max(0, Math.min(bands.length - 1, next));
+      bands.forEach(function (band, position) {
+        band.setAttribute("tabindex", position === next ? "0" : "-1");
+      });
+      bands[next].focus();
+    });
+
+    if (refocus) {
+      /* The same row, not the same slot: filtering rows above the reader's
+         position must not move them onto a different bar. */
+      var target = data.categories.findIndex(function (category) {
+        return category.row === refocus.row;
+      });
+      /* Rows rebuilt wholesale lose their identity, so fall back to the label
+         and then to the old slot. */
+      if (target === -1) {
+        target = data.categories.findIndex(function (category) {
+          return category.label === refocus.label;
+        });
+      }
+      if (target === -1) target = Math.min(refocus.index, bands.length - 1);
+      bands.forEach(function (band, position) {
+        band.setAttribute("tabindex", position === target ? "0" : "-1");
+      });
+      bands[target].focus();
+    }
+  }
+
+  function renderCharts(target) {
+    if (target === undefined || target === null) {
+      document.querySelectorAll("[data-a-chart]").forEach(renderChart);
+      return;
+    }
+    var scope =
+      typeof target === "string" ? document.querySelector(target) : target;
+    if (!scope) return;
+    if (scope.matches && scope.matches("[data-a-chart]")) renderChart(scope);
+    else scope.querySelectorAll("[data-a-chart]").forEach(renderChart);
+  }
+
+  renderCharts();
+
+  /* The only public surface of the kit: artifacts that swap or filter a
+     chart's rows themselves can force a redraw, though the table observer
+     above already covers ordinary DOM edits. */
+  window.artifactKit = window.artifactKit || {};
+  window.artifactKit.renderCharts = renderCharts;
+
+  /* Print carries the numbers, not the hover: expand every chart's data
+     table before the page is rendered. */
+  var printReopened = [];
+  window.addEventListener("beforeprint", function () {
+    hideTip();
+    document.querySelectorAll(".a-chart__data").forEach(function (details) {
+      if (details.open) return;
+      printReopened.push(details);
+      details.open = true;
+    });
+  });
+
+  window.addEventListener("afterprint", function () {
+    printReopened.forEach(function (details) {
+      details.open = false;
+    });
+    printReopened = [];
+  });
+
+  /* ---------- diagram: pan, zoom, select ----------
+     Pointer drag and wheel pan/zoom the viewport group; arrow keys and
+     +/-/0 do the same from the keyboard so the diagram is operable without
+     a pointing device. Node clicks (or Enter/Space) update the inspector. */
+  document.querySelectorAll("[data-a-diagram]").forEach(function (diagram) {
+    var svg = diagram.querySelector("[data-a-diagram-canvas]");
+    var viewport = diagram.querySelector("[data-a-diagram-viewport]");
+    if (!svg || !viewport) return;
+
+    var view = { x: 0, y: 0, scale: 1 };
+    var drag = null;
+
+    var render = function () {
+      viewport.setAttribute(
+        "transform",
+        "translate(" + view.x + " " + view.y + ") scale(" + view.scale + ")"
+      );
+    };
+
+    var zoomBy = function (factor) {
+      view.scale = Math.min(2.5, Math.max(0.5, view.scale * factor));
+      render();
+    };
+
+    svg.addEventListener("pointerdown", function (event) {
+      if (event.target.closest("[data-a-node]")) return;
+      drag = { x: event.clientX, y: event.clientY };
+      svg.setPointerCapture(event.pointerId);
+    });
+
+    svg.addEventListener("pointermove", function (event) {
+      if (!drag) return;
+      view.x += event.clientX - drag.x;
+      view.y += event.clientY - drag.y;
+      drag = { x: event.clientX, y: event.clientY };
+      render();
+    });
+
+    var endDrag = function () {
+      drag = null;
+    };
+    svg.addEventListener("pointerup", endDrag);
+    svg.addEventListener("pointercancel", endDrag);
+
+    svg.addEventListener(
+      "wheel",
+      function (event) {
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        zoomBy(event.deltaY < 0 ? 1.1 : 0.9);
+      },
+      { passive: false }
+    );
+
+    diagram.addEventListener("keydown", function (event) {
+      var pan = { ArrowUp: [0, 24], ArrowDown: [0, -24], ArrowLeft: [24, 0], ArrowRight: [-24, 0] }[
+        event.key
+      ];
+      if (pan && !event.target.closest("[data-a-node]")) {
+        event.preventDefault();
+        view.x += pan[0];
+        view.y += pan[1];
+        render();
+        return;
+      }
+      if (event.key === "+" || event.key === "=") zoomBy(1.1);
+      else if (event.key === "-") zoomBy(0.9);
+      else if (event.key === "0") {
+        view = { x: 0, y: 0, scale: 1 };
+        render();
+      }
+    });
+
+    diagram.querySelectorAll("[data-a-zoom]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var action = button.getAttribute("data-a-zoom");
+        if (action === "in") zoomBy(1.15);
+        else if (action === "out") zoomBy(0.87);
+        else {
+          view = { x: 0, y: 0, scale: 1 };
+          render();
+        }
+      });
+    });
+
+    var inspector = diagram.querySelector("[data-a-inspector]");
+    var select = function (node) {
+      diagram.querySelectorAll("[data-a-node]").forEach(function (other) {
+        other.setAttribute("aria-current", String(other === node));
+      });
+      if (!inspector) return;
+      var title = inspector.querySelector("[data-a-inspector-title]");
+      var body = inspector.querySelector("[data-a-inspector-body]");
+      if (title) title.textContent = node.getAttribute("data-a-title") || "";
+      if (body) body.textContent = node.getAttribute("data-a-detail") || "";
+    };
+
+    diagram.querySelectorAll("[data-a-node]").forEach(function (node) {
+      node.addEventListener("click", function () {
+        select(node);
+      });
+      node.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        select(node);
+      });
+    });
+
+    render();
+  });
+})();
+    </script>
+  </body>
+</html>
