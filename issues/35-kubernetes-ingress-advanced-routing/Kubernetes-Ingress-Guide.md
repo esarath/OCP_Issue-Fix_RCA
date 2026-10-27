@@ -1,7 +1,5 @@
 # Kubernetes Ingress — Simple Guide (with Diagrams)
 
-> Based on: [Kubernetes Ingress — Advanced Routing Deep Dive](https://blog.devops.dev/kubernetes-ingress-advanced-routing-deep-dive-with-diagrams-production-patterns-57204ce40092)
-
 ---
 
 ## 1. Where Ingress Fits
@@ -301,7 +299,7 @@ spec:
                   number: 80
 ```
 
-> The article shows `rewrite-target: /` — that sends **every** request to `/`. Use capture groups (above) to keep the rest of the path.
+> A plain `rewrite-target: /` sends **every** request to `/`. Use capture groups (above) to keep the rest of the path.
 
 ### 9.2 Rate Limiting
 

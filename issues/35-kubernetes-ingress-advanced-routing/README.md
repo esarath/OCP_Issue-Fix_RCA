@@ -6,7 +6,7 @@
 | **Type** | Procedure / Documentation |
 | **Status** | **Documented** — concept guide with visual diagrams; reference material |
 | **Cluster** | lab.ocp.local (OCP 4.20.35, dev/testing) |
-| **Scope** | Ingress vs Ingress Controller, request flow (DNS → LB → controller → Service → Pods), host-based / path-based / combined routing, TLS Secrets, NGINX install, production microservices example, advanced NGINX annotations (rewrite, rate limiting, auth, canary), Service vs Ingress, production checklist. Source: [DevOps.dev article](https://blog.devops.dev/kubernetes-ingress-advanced-routing-deep-dive-with-diagrams-production-patterns-57204ce40092) |
+| **Scope** | Ingress vs Ingress Controller, request flow (DNS → LB → controller → Service → Pods), host-based / path-based / combined routing, TLS Secrets, NGINX install, production microservices example, advanced NGINX annotations (rewrite, rate limiting, auth, canary), Service vs Ingress, production checklist. |
 
 ## TL;DR
 
