@@ -1,0 +1,2360 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content="Devin artifact kit" />
+    <title>What happens when you deploy — the full flow, step by step</title>
+    <style>
+/* Devin artifact kit — self-contained styles for standalone HTML artifacts.
+   Tokens are translated from the Devin product design system. Light is the
+   default; dark is applied from `prefers-color-scheme` unless a host theme
+   signal (`?theme=`, `data-theme`, or a `devin:theme` message) says otherwise. */
+
+:root {
+  color-scheme: light;
+
+  --bg-page: 252 252 252;
+  --bg-wash: 248 248 248;
+  --bg-elevated: 255 255 255;
+  --tint-tertiary: 0 0 0 / 0.04;
+  --tint-secondary: 0 0 0 / 0.06;
+  --tint-primary: 0 0 0 / 0.08;
+  --text-primary: 25 25 25;
+  --text-secondary: 25 25 25 / 0.64;
+  --text-tertiary: 25 25 25 / 0.4;
+  --text-accent: 49 124 255;
+  --bg-accent: 49 124 255;
+  --border-secondary: 0 0 0 / 0.08;
+  --border-primary: 0 0 0 / 0.1;
+  --text-green: 0 165 88;
+  --text-orange: 245 142 58;
+  --text-red: 245 59 58;
+  --text-blue: 51 125 244;
+  --text-purple: 149 108 222;
+  --shadow-l1: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-l2: 0 4px 12px rgb(0 0 0 / 0.08);
+
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --unit: 4px;
+  --max-width: 1120px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-page: 20 20 20;
+  --bg-wash: 25 25 25;
+  --bg-elevated: 31 31 31;
+  --tint-tertiary: 255 255 255 / 0.03;
+  --tint-secondary: 255 255 255 / 0.05;
+  --tint-primary: 255 255 255 / 0.08;
+  --text-primary: 255 255 255 / 0.9;
+  --text-secondary: 255 255 255 / 0.52;
+  --text-tertiary: 255 255 255 / 0.4;
+  --text-accent: 73 176 255;
+  --bg-accent: 68 137 255;
+  --border-secondary: 255 255 255 / 0.04;
+  --border-primary: 255 255 255 / 0.08;
+  --text-green: 0 236 126;
+  --text-orange: 245 142 58;
+  --text-red: 255 108 107;
+  --text-blue: 92 154 255;
+  --text-purple: 178 145 240;
+  --shadow-l1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-l2: 0 4px 12px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --bg-page: 20 20 20;
+    --bg-wash: 25 25 25;
+    --bg-elevated: 31 31 31;
+    --tint-tertiary: 255 255 255 / 0.03;
+    --tint-secondary: 255 255 255 / 0.05;
+    --tint-primary: 255 255 255 / 0.08;
+    --text-primary: 255 255 255 / 0.9;
+    --text-secondary: 255 255 255 / 0.52;
+    --text-tertiary: 255 255 255 / 0.4;
+    --text-accent: 73 176 255;
+    --bg-accent: 68 137 255;
+    --border-secondary: 255 255 255 / 0.04;
+    --border-primary: 255 255 255 / 0.08;
+    --text-green: 0 236 126;
+    --text-orange: 245 142 58;
+    --text-red: 255 108 107;
+    --text-blue: 92 154 255;
+    --text-purple: 178 145 240;
+    --shadow-l1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-l2: 0 4px 12px rgb(0 0 0 / 0.5);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: rgb(var(--bg-page));
+  color: rgb(var(--text-primary));
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(button, a, input, select, summary, [tabindex]):focus-visible {
+  outline: 1px solid rgb(var(--bg-accent));
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- layout ---------- */
+
+.a-shell {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: calc(var(--unit) * 8) calc(var(--unit) * 6) calc(var(--unit) * 16);
+}
+
+.a-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: calc(var(--unit) * 3);
+  padding-bottom: calc(var(--unit) * 4);
+  border-bottom: 1px solid rgb(var(--border-primary));
+}
+
+.a-header__title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.a-header__subtitle {
+  margin: calc(var(--unit) * 1) 0 0;
+  color: rgb(var(--text-secondary));
+  font-size: 13px;
+  line-height: 18px;
+  max-width: 68ch;
+}
+
+.a-section {
+  margin-top: calc(var(--unit) * 9);
+}
+
+.a-section__title {
+  margin: 0 0 calc(var(--unit) * 1);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.a-section__note,
+.a-prose {
+  margin: 0 0 calc(var(--unit) * 4);
+  color: rgb(var(--text-secondary));
+  font-size: 13px;
+  line-height: 20px;
+  max-width: 72ch;
+}
+
+.a-grid {
+  display: grid;
+  gap: calc(var(--unit) * 3);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.a-grid--halves {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+/* ---------- surfaces ---------- */
+
+.a-panel {
+  background: rgb(var(--bg-elevated));
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-l1);
+  padding: calc(var(--unit) * 4);
+}
+
+.a-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--unit) * 2);
+  margin-bottom: calc(var(--unit) * 3);
+}
+
+.a-panel__title {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.a-label {
+  color: rgb(var(--text-tertiary));
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: none;
+}
+
+/* ---------- metrics ---------- */
+
+.a-metric {
+  background: rgb(var(--tint-tertiary));
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius);
+  padding: calc(var(--unit) * 3);
+}
+
+.a-metric__label {
+  color: rgb(var(--text-secondary));
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.a-metric__value {
+  margin-top: calc(var(--unit) * 1);
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.a-metric__delta {
+  margin-top: calc(var(--unit) * 1);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--text-secondary));
+}
+
+.a-metric__delta[data-trend="up"] {
+  color: rgb(var(--text-green));
+}
+
+.a-metric__delta[data-trend="down"] {
+  color: rgb(var(--text-red));
+}
+
+/* ---------- status ---------- */
+
+.a-status {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--unit) * 1.5);
+  font-size: 12px;
+  line-height: 16px;
+  color: rgb(var(--text-secondary));
+  white-space: nowrap;
+}
+
+.a-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.a-status[data-state="done"] {
+  color: rgb(var(--text-green));
+}
+
+.a-status[data-state="active"] {
+  color: rgb(var(--text-blue));
+}
+
+.a-status[data-state="at-risk"] {
+  color: rgb(var(--text-orange));
+}
+
+.a-status[data-state="blocked"] {
+  color: rgb(var(--text-red));
+}
+
+.a-status[data-state="planned"] {
+  color: rgb(var(--text-tertiary));
+}
+
+/* ---------- tables ---------- */
+
+.a-table-scroll {
+  overflow-x: auto;
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius);
+  background: rgb(var(--bg-elevated));
+}
+
+.a-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.a-table th,
+.a-table td {
+  text-align: left;
+  padding: calc(var(--unit) * 2) calc(var(--unit) * 3);
+  border-bottom: 1px solid rgb(var(--border-secondary));
+  vertical-align: top;
+}
+
+.a-table thead th {
+  position: sticky;
+  top: 0;
+  background: rgb(var(--bg-wash));
+  color: rgb(var(--text-secondary));
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 16px;
+  z-index: 1;
+}
+
+.a-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.a-table tbody tr:hover td {
+  background: rgb(var(--tint-tertiary));
+}
+
+.a-table td[data-numeric],
+.a-table th[data-numeric] {
+  text-align: right;
+  font-family: var(--font-mono);
+}
+
+/* Pinned columns: `data-a-sticky-columns="N"` keeps the first N columns in
+   view while the table scrolls sideways. CSS alone pins the first column, so
+   N=1 works without script; kit.js measures the leading columns, marks each
+   pinned cell `data-a-sticky` with its `--a-sticky-left` offset, and flags the
+   table `data-a-sticky-ready`. Pinned cells need opaque backgrounds or the
+   scrolled columns show through them. */
+.a-table[data-a-sticky-columns]:not([data-a-sticky-ready]):not([data-a-sticky-columns="0"])
+  tr
+  > :first-child,
+.a-table[data-a-sticky-ready] [data-a-sticky] {
+  position: sticky;
+  left: var(--a-sticky-left, 0);
+  z-index: 1;
+  background-color: rgb(var(--bg-elevated));
+}
+
+/* Header row above pinned body cells; the pinned corner above both. */
+.a-table[data-a-sticky-columns] thead th {
+  z-index: 2;
+}
+
+.a-table[data-a-sticky-columns]:not([data-a-sticky-ready]):not([data-a-sticky-columns="0"])
+  thead
+  tr
+  > :first-child,
+.a-table[data-a-sticky-ready] thead [data-a-sticky] {
+  z-index: 3;
+  background-color: rgb(var(--bg-wash));
+}
+
+/* The row tint is translucent, so layer it over the opaque surface. */
+.a-table[data-a-sticky-columns]:not([data-a-sticky-ready]):not([data-a-sticky-columns="0"])
+  tbody
+  tr:hover
+  > td:first-child,
+.a-table[data-a-sticky-ready] tbody tr:hover > td[data-a-sticky] {
+  background: linear-gradient(
+      rgb(var(--tint-tertiary)),
+      rgb(var(--tint-tertiary))
+    )
+    rgb(var(--bg-elevated));
+}
+
+/* Divider on the last pinned column. Table cells don't paint box-shadow when
+   borders collapse, so it is a pseudo-element. Without script there is no
+   scroll state and it is always shown; with it, only while scrolled. */
+.a-table[data-a-sticky-columns]:not([data-a-sticky-ready]):not([data-a-sticky-columns="0"])
+  tr
+  > :first-child::after,
+.a-table[data-a-sticky-ready] [data-a-sticky="edge"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 8px;
+  border-left: 1px solid rgb(var(--border-primary));
+  background: linear-gradient(to right, rgb(0 0 0 / 0.08), transparent);
+  pointer-events: none;
+}
+
+.a-table-scroll:not([data-a-scrolled])
+  .a-table[data-a-sticky-ready]
+  [data-a-sticky="edge"]::after {
+  display: none;
+}
+
+/* ---------- charts (inline SVG + CSS bars) ---------- */
+
+.a-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.a-chart__grid line {
+  stroke: rgb(var(--border-primary));
+  stroke-dasharray: 2 3;
+}
+
+.a-chart__axis text {
+  fill: rgb(var(--text-tertiary));
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.a-chart__series {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.a-chart__point {
+  stroke: rgb(var(--bg-elevated));
+  stroke-width: 1.5;
+}
+
+.a-bars {
+  display: grid;
+  gap: calc(var(--unit) * 2);
+  margin: 0;
+}
+
+.a-bars__row {
+  display: grid;
+  grid-template-columns: minmax(88px, 22%) 1fr auto;
+  align-items: center;
+  gap: calc(var(--unit) * 2);
+  font-size: 13px;
+}
+
+.a-bars__track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(var(--tint-secondary));
+  overflow: hidden;
+}
+
+.a-bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: rgb(var(--bg-accent));
+}
+
+.a-bars__value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgb(var(--text-secondary));
+}
+
+.a-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--unit) * 3);
+  margin: calc(var(--unit) * 3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: rgb(var(--text-secondary));
+}
+
+.a-legend li {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--unit) * 1.5);
+}
+
+.a-legend__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* Series colors stay stable across themes so legends keep meaning. */
+.a-series-1 {
+  --series: 49 124 255;
+}
+.a-series-2 {
+  --series: 0 165 88;
+}
+.a-series-3 {
+  --series: 149 108 222;
+}
+.a-series-4 {
+  --series: 245 142 58;
+}
+
+.a-chart__series.a-series-1,
+.a-chart__series.a-series-2,
+.a-chart__series.a-series-3,
+.a-chart__series.a-series-4 {
+  stroke: rgb(var(--series));
+}
+
+.a-chart__point.a-series-1,
+.a-chart__point.a-series-2,
+.a-chart__point.a-series-3,
+.a-chart__point.a-series-4 {
+  fill: rgb(var(--series));
+}
+
+.a-series-1 .a-legend__swatch,
+.a-series-2 .a-legend__swatch,
+.a-series-3 .a-legend__swatch,
+.a-series-4 .a-legend__swatch {
+  background: rgb(var(--series));
+}
+
+.a-chart__bar.a-series-1,
+.a-chart__bar.a-series-2,
+.a-chart__bar.a-series-3,
+.a-chart__bar.a-series-4 {
+  fill: rgb(var(--series));
+}
+
+/* Dimming the rest of the plot reads as "this is the value you asked for"
+   without moving anything, which keeps the highlight legible under
+   reduced motion. */
+.a-chart__bar,
+.a-chart__point,
+.a-chart__series {
+  transition: opacity 120ms ease;
+}
+
+.a-chart__plot:has([data-a-active]) .a-chart__bar:not([data-a-active]) {
+  opacity: 0.45;
+}
+
+.a-chart__point[data-a-active] {
+  r: 4.25;
+}
+
+.a-chart__crosshair {
+  stroke: rgb(var(--border-primary));
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.a-chart__band {
+  fill: transparent;
+  /* Vertical scrolling must still work when a finger lands on the plot. */
+  touch-action: pan-y;
+}
+
+.a-chart__band[data-a-active] {
+  fill: rgb(var(--tint-secondary));
+}
+
+.a-chart__band:focus-visible {
+  outline: 1px solid rgb(var(--bg-accent));
+  outline-offset: -2px;
+}
+
+.a-chart {
+  touch-action: pan-y;
+}
+
+/* Shown in place of the plot when a filter leaves the source table empty. */
+.a-chart__empty {
+  margin: 0 0 calc(var(--unit) * 3);
+  padding: calc(var(--unit) * 6) 0;
+  border: 1px dashed rgb(var(--border-secondary));
+  border-radius: var(--radius);
+  color: rgb(var(--text-secondary));
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---------- tooltip ---------- */
+
+.a-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  min-width: 120px;
+  max-width: 260px;
+  padding: calc(var(--unit) * 2) calc(var(--unit) * 2.5);
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius);
+  background: rgb(var(--bg-elevated));
+  box-shadow: var(--shadow-l2);
+  color: rgb(var(--text-primary));
+  font-size: 12px;
+  line-height: 16px;
+  pointer-events: none;
+}
+
+.a-tip__title {
+  margin-bottom: var(--unit);
+  font-weight: 600;
+  color: rgb(var(--text-primary));
+}
+
+.a-tip__text {
+  color: rgb(var(--text-secondary));
+}
+
+.a-tip__row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--unit) * 1.5);
+  white-space: nowrap;
+}
+
+.a-tip__swatch {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 2px;
+  background: rgb(var(--series, var(--bg-accent)));
+}
+
+.a-tip__name {
+  color: rgb(var(--text-secondary));
+}
+
+.a-tip__value {
+  margin-left: auto;
+  padding-left: calc(var(--unit) * 2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- controls: tabs, filters, toggles ---------- */
+
+.a-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--unit) * 2);
+  margin-bottom: calc(var(--unit) * 4);
+}
+
+.a-tabs {
+  display: flex;
+  gap: calc(var(--unit) * 1);
+  padding: 2px;
+  background: rgb(var(--tint-tertiary));
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius);
+}
+
+.a-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgb(var(--text-secondary));
+  font: inherit;
+  font-size: 13px;
+  padding: calc(var(--unit) * 1) calc(var(--unit) * 2.5);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.a-btn:hover {
+  background: rgb(var(--tint-secondary));
+  color: rgb(var(--text-primary));
+}
+
+.a-btn[aria-selected="true"],
+.a-btn[aria-pressed="true"] {
+  background: rgb(var(--bg-elevated));
+  border-color: rgb(var(--border-primary));
+  color: rgb(var(--text-primary));
+  box-shadow: var(--shadow-l1);
+}
+
+.a-btn--outline {
+  border-color: rgb(var(--border-primary));
+  background: rgb(var(--bg-elevated));
+}
+
+.a-btn--icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+}
+
+.a-theme-icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.a-theme-icon--moon {
+  display: none;
+}
+
+:root[data-theme="dark"] .a-theme-icon--sun {
+  display: none;
+}
+
+:root[data-theme="dark"] .a-theme-icon--moon {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .a-theme-icon--sun {
+    display: none;
+  }
+
+  :root:not([data-theme]) .a-theme-icon--moon {
+    display: block;
+  }
+}
+
+.a-select {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  color: rgb(var(--text-primary));
+  background: rgb(var(--bg-elevated));
+  border: 1px solid rgb(var(--border-primary));
+  border-radius: var(--radius-sm);
+  padding: calc(var(--unit) * 1) calc(var(--unit) * 2);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ---------- diagram ---------- */
+
+.a-diagram {
+  position: relative;
+  background: rgb(var(--bg-wash));
+  border: 1px solid rgb(var(--border-secondary));
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.a-diagram__canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.a-diagram__canvas:active {
+  cursor: grabbing;
+}
+
+.a-group rect {
+  fill: rgb(var(--tint-tertiary));
+  stroke: rgb(var(--border-primary));
+  stroke-dasharray: 4 4;
+  rx: 10;
+}
+
+.a-group text {
+  fill: rgb(var(--text-tertiary));
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.a-node rect {
+  fill: rgb(var(--bg-elevated));
+  stroke: rgb(var(--border-primary));
+  rx: 8;
+}
+
+.a-node__title {
+  fill: rgb(var(--text-primary));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.a-node__sub {
+  fill: rgb(var(--text-secondary));
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.a-node {
+  cursor: pointer;
+}
+
+.a-node:hover rect,
+.a-node:focus-visible rect {
+  stroke: rgb(var(--bg-accent));
+}
+
+.a-node[aria-current="true"] rect {
+  stroke: rgb(var(--bg-accent));
+  stroke-width: 2;
+}
+
+.a-edge {
+  fill: none;
+  stroke: rgb(var(--text-tertiary));
+  stroke-width: 1.25;
+}
+
+.a-edge--dim {
+  stroke: rgb(var(--border-primary));
+}
+
+.a-edge__label {
+  fill: rgb(var(--text-tertiary));
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.a-inspector {
+  border-top: 1px solid rgb(var(--border-secondary));
+  background: rgb(var(--bg-elevated));
+  padding: calc(var(--unit) * 3) calc(var(--unit) * 4);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.a-inspector__title {
+  margin: 0 0 calc(var(--unit) * 1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- plan / process ---------- */
+
+.a-phase {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: calc(var(--unit) * 3);
+  padding: calc(var(--unit) * 4) 0;
+  border-bottom: 1px solid rgb(var(--border-secondary));
+}
+
+.a-phase:last-child {
+  border-bottom: none;
+}
+
+.a-phase__index {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgb(var(--text-tertiary));
+  padding-top: 2px;
+}
+
+.a-phase__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--unit) * 2);
+  justify-content: space-between;
+}
+
+.a-phase__title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.a-meta-list {
+  display: grid;
+  gap: calc(var(--unit) * 1);
+  margin: calc(var(--unit) * 2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: rgb(var(--text-secondary));
+}
+
+.a-meta-list li,
+.a-meta-list > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 15%) 1fr;
+  gap: calc(var(--unit) * 2);
+}
+
+.a-meta-list dt,
+.a-meta-list .a-meta-list__key {
+  color: rgb(var(--text-tertiary));
+  font-size: 12px;
+}
+
+.a-meta-list dd {
+  margin: 0;
+}
+
+.a-timeline {
+  display: grid;
+  gap: calc(var(--unit) * 1);
+  margin: 0;
+  font-size: 12px;
+}
+
+.a-timeline__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 20%) 1fr;
+  align-items: center;
+  gap: calc(var(--unit) * 2);
+}
+
+.a-timeline__track {
+  position: relative;
+  height: 10px;
+  background: rgb(var(--tint-tertiary));
+  border-radius: var(--radius-sm);
+}
+
+.a-timeline__span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-sm);
+  background: rgb(var(--bg-accent) / 0.75);
+}
+
+.a-timeline__span[data-state="at-risk"] {
+  background: rgb(var(--text-orange) / 0.75);
+}
+
+.a-timeline__span[data-state="done"] {
+  background: rgb(var(--text-green) / 0.7);
+}
+
+.a-timeline__scale {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  color: rgb(var(--text-tertiary));
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.a-callout {
+  border: 1px solid rgb(var(--border-secondary));
+  border-left: 2px solid rgb(var(--text-orange));
+  border-radius: var(--radius-sm);
+  background: rgb(var(--tint-tertiary));
+  padding: calc(var(--unit) * 3);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.a-callout--decision {
+  border-left-color: rgb(var(--bg-accent));
+}
+
+.a-callout--risk {
+  border-left-color: rgb(var(--text-red));
+}
+
+.a-callout__title {
+  margin: 0 0 calc(var(--unit) * 1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+details.a-disclosure {
+  border-top: 1px solid rgb(var(--border-secondary));
+  padding: calc(var(--unit) * 2) 0;
+}
+
+details.a-disclosure > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: rgb(var(--text-secondary));
+  list-style: none;
+}
+
+details.a-disclosure > summary::marker,
+details.a-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.a-disclosure > summary::before {
+  content: "+ ";
+  font-family: var(--font-mono);
+}
+
+details.a-disclosure[open] > summary::before {
+  content: "− ";
+}
+
+/* ---------- empty and error states ---------- */
+
+.a-empty,
+.a-error {
+  border: 1px dashed rgb(var(--border-primary));
+  border-radius: var(--radius);
+  padding: calc(var(--unit) * 6);
+  text-align: center;
+  color: rgb(var(--text-secondary));
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.a-error {
+  border-style: solid;
+  border-color: rgb(var(--text-red) / 0.4);
+  color: rgb(var(--text-primary));
+  text-align: left;
+}
+
+.a-error__title {
+  margin: 0 0 calc(var(--unit) * 1);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--text-red));
+}
+
+.a-footnote {
+  margin-top: calc(var(--unit) * 10);
+  padding-top: calc(var(--unit) * 4);
+  border-top: 1px solid rgb(var(--border-secondary));
+  color: rgb(var(--text-tertiary));
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.a-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 640px) {
+  .a-shell {
+    padding: calc(var(--unit) * 5) calc(var(--unit) * 4)
+      calc(var(--unit) * 12);
+  }
+
+  .a-header__title {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .a-bars__row,
+  .a-timeline__row,
+  .a-meta-list li,
+  .a-meta-list > div {
+    grid-template-columns: 1fr;
+    gap: calc(var(--unit) * 1);
+  }
+
+  .a-phase {
+    grid-template-columns: 1fr;
+  }
+
+  .a-phase__index {
+    padding-top: 0;
+  }
+
+  .a-toolbar {
+    align-items: stretch;
+  }
+
+  .a-tabs {
+    overflow-x: auto;
+  }
+}
+
+/* ---------- motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- print / export ---------- */
+
+@media print {
+  :root[data-theme],
+  :root:not([data-theme]) {
+    color-scheme: light only;
+    --bg-page: 252 252 252;
+    --bg-wash: 248 248 248;
+    --bg-elevated: 255 255 255;
+    --tint-tertiary: 0 0 0 / 0.04;
+    --tint-secondary: 0 0 0 / 0.06;
+    --tint-primary: 0 0 0 / 0.08;
+    --text-primary: 25 25 25;
+    --text-secondary: 25 25 25 / 0.64;
+    --text-tertiary: 25 25 25 / 0.4;
+    --text-accent: 49 124 255;
+    --bg-accent: 49 124 255;
+    --border-secondary: 0 0 0 / 0.08;
+    --border-primary: 0 0 0 / 0.1;
+    --text-green: 0 165 88;
+    --text-orange: 245 142 58;
+    --text-red: 245 59 58;
+    --text-blue: 51 125 244;
+    --text-purple: 149 108 222;
+    --shadow-l1: none;
+    --shadow-l2: none;
+  }
+
+  body {
+    background: #fff;
+    color: #111;
+  }
+
+  .a-no-print,
+  .a-toolbar,
+  .a-diagram__hint {
+    display: none !important;
+  }
+
+  .a-panel,
+  .a-table-scroll,
+  .a-diagram {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .a-table[data-a-sticky-columns] tr > :first-child,
+  .a-table [data-a-sticky] {
+    position: static !important;
+  }
+
+  .a-table[data-a-sticky-columns] tr > :first-child::after,
+  .a-table [data-a-sticky]::after {
+    display: none !important;
+  }
+
+  .a-section {
+    break-inside: avoid;
+    margin-top: 24px;
+  }
+
+  [hidden].a-print-reveal {
+    display: revert !important;
+  }
+}
+    </style>
+  </head>
+  <body>
+    <main class="a-shell">
+      <header class="a-header">
+        <div>
+          <h1 class="a-header__title">What happens when you deploy — the full flow, step by step</h1>
+          <p class="a-header__subtitle">From oc apply to a Running pod: API server, etcd, controllers, scheduler, kubelet, CRI-O, CNI and the reconcile loop.</p>
+        </div>
+        <button
+          type="button"
+          class="a-btn a-btn--icon a-no-print"
+          data-a-theme-toggle
+          aria-label="Switch to dark mode"
+          title="Switch to dark mode"
+        >
+          <svg
+            class="a-theme-icon a-theme-icon--moon"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+          >
+            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+          </svg>
+          <svg
+            class="a-theme-icon a-theme-icon--sun"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path
+              d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+            />
+          </svg>
+        </button>
+      </header>
+
+      <section
+        class="a-section a-error"
+        data-a-error
+        role="alert"
+        aria-live="polite"
+        hidden
+      >
+        <p class="a-error__title">Something in this artifact failed to run</p>
+        <p>
+          The content below is still readable, but an interactive control may
+          not respond.
+          <span data-a-error-detail></span>
+        </p>
+      </section>
+
+<style>
+pre.code{font-family:var(--font-mono);font-size:13px;line-height:1.5;background:rgb(var(--bg-wash));border:1px solid rgb(var(--border-primary)/.1);border-radius:8px;padding:12px 14px;overflow:auto;margin:10px 0}
+:not(pre)>code{font-family:var(--font-mono);font-size:.9em;background:rgb(var(--tint-primary)/.06);padding:1px 5px;border-radius:4px}
+figure.dg{margin:12px 0;padding:14px;background:#fff;border:1px solid rgb(var(--border-primary)/.12);border-radius:10px;overflow-x:auto}
+.steps{margin:8px 0 0;padding-left:22px}.steps li{margin:4px 0}
+.a-callout{margin-top:12px}
+</style>
+<p class="a-section__note">Colour key used in every diagram:</p><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 90' width='1040' height='90' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Colour key for the deployment-flow diagrams' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Colour key for the deployment-flow diagrams</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='14' y='26' width='86' height='36' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='57.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>You / oc</text><rect x='107' y='26' width='86' height='36' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='150.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>API server</text><rect x='200' y='26' width='86' height='36' rx='5' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='243.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>etcd</text><rect x='293' y='26' width='86' height='36' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='336.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>Controller</text><rect x='386' y='26' width='86' height='36' rx='5' fill='#F8C8DC' stroke='#B03A73' stroke-width='1.3'/><text x='429.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>Scheduler</text><rect x='479' y='26' width='86' height='36' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='522.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>Kubelet</text><rect x='572' y='26' width='86' height='36' rx='5' fill='#D9C7F0' stroke='#6A3FA0' stroke-width='1.3'/><text x='615.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>CRI-O</text><rect x='665' y='26' width='86' height='36' rx='5' fill='#B8E6D9' stroke='#2A8C6E' stroke-width='1.3'/><text x='708.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>CNI / network</text><rect x='758' y='26' width='86' height='36' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='801.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>Pending pod</text><rect x='851' y='26' width='86' height='36' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='894.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>Running pod</text><rect x='944' y='26' width='86' height='36' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='987.0' y='48.5' text-anchor='middle' font-size='13'  fill='#111'>Failure</text></svg></figure>
+<section class="a-section" aria-labelledby="analogy"><h2 class="a-section__title" id="analogy">The restaurant analogy</h2><div class="a-prose"><p>Think of it like placing an order at a restaurant: you tell the <strong>front desk</strong> (API server), the order gets <strong>written down</strong> (etcd), the <strong>kitchen manager</strong> (controller) breaks it into tasks, a <strong>host</strong> assigns a table (scheduler), and a <strong>waiter</strong> actually serves it (kubelet).</p></div><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 250' width='1000' height='250' style='width:100%;height:auto;max-width:1000px;display:block;margin:auto' role='img' aria-label='Restaurant analogy: front desk is the API server, order book is etcd, kitchen manager is the controller, host is the scheduler, waiter is the kubelet' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Restaurant analogy: front desk is the API server, order book is etcd, kitchen manager is the controller, host is the scheduler, waiter is the kubelet</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><text x='16' y='62' font-size='12' text-anchor='start' fill='#555' font-weight='700' >Restaurant</text><text x='16' y='182' font-size='12' text-anchor='start' fill='#555' font-weight='700' >Kubernetes</text><rect x='105' y='36' width='132' height='50' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='171.0' y='58.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>You</text><text x='171.0' y='74.0' text-anchor='middle' font-size='10.5' fill='#444'>place the order</text><rect x='105' y='156' width='132' height='50' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='171.0' y='178.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>You (oc / kubectl)</text><text x='171.0' y='194.0' text-anchor='middle' font-size='10.5' fill='#444'>oc apply</text><path d='M171,88 L171,154' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><path d='M237,61 L251,61' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M237,181 L251,181' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='253' y='36' width='132' height='50' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='319.0' y='58.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Front desk</text><text x='319.0' y='74.0' text-anchor='middle' font-size='10.5' fill='#444'>takes the order</text><rect x='253' y='156' width='132' height='50' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='319.0' y='178.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>kube-apiserver</text><text x='319.0' y='194.0' text-anchor='middle' font-size='10.5' fill='#444'>validate + store</text><path d='M319,88 L319,154' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><path d='M385,61 L399,61' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M385,181 L399,181' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='401' y='36' width='132' height='50' rx='5' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='467.0' y='58.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Order book</text><text x='467.0' y='74.0' text-anchor='middle' font-size='10.5' fill='#444'>order written down</text><rect x='401' y='156' width='132' height='50' rx='5' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='467.0' y='178.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>etcd</text><text x='467.0' y='194.0' text-anchor='middle' font-size='10.5' fill='#444'>desired state</text><path d='M467,88 L467,154' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><path d='M533,61 L547,61' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M533,181 L547,181' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='549' y='36' width='132' height='50' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='615.0' y='58.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Kitchen manager</text><text x='615.0' y='74.0' text-anchor='middle' font-size='10.5' fill='#444'>splits into tasks</text><rect x='549' y='156' width='132' height='50' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='615.0' y='178.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Controllers</text><text x='615.0' y='194.0' text-anchor='middle' font-size='10.5' fill='#444'>Deployment → RS → Pods</text><path d='M615,88 L615,154' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><path d='M681,61 L695,61' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M681,181 L695,181' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='697' y='36' width='132' height='50' rx='5' fill='#F8C8DC' stroke='#B03A73' stroke-width='1.3'/><text x='763.0' y='58.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Host</text><text x='763.0' y='74.0' text-anchor='middle' font-size='10.5' fill='#444'>assigns a table</text><rect x='697' y='156' width='132' height='50' rx='5' fill='#F8C8DC' stroke='#B03A73' stroke-width='1.3'/><text x='763.0' y='178.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Scheduler</text><text x='763.0' y='194.0' text-anchor='middle' font-size='10.5' fill='#444'>pod → node</text><path d='M763,88 L763,154' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><path d='M829,61 L843,61' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M829,181 L843,181' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='845' y='36' width='132' height='50' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='911.0' y='58.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Waiter</text><text x='911.0' y='74.0' text-anchor='middle' font-size='10.5' fill='#444'>actually serves it</text><rect x='845' y='156' width='132' height='50' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='911.0' y='178.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Kubelet + CRI-O</text><text x='911.0' y='194.0' text-anchor='middle' font-size='10.5' fill='#444'>runs containers</text><path d='M911,88 L911,154' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><text x='500' y='236' font-size='11.5' text-anchor='middle' fill='#444'  font-style='italic'>Same chain of hand-offs: each role only does its own job and passes the work on.</text></svg></figure><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 470' width='1040' height='470' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Full deploy flow: everything talks only to the API server, which stores state in etcd; controllers, scheduler and kubelet watch it' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Full deploy flow: everything talks only to the API server, which stores state in etcd; controllers, scheduler and kubelet watch it</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='200' width='140' height='56' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='90.0' y='225.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>You</text><text x='90.0' y='241.0' text-anchor='middle' font-size='10.5' fill='#444'>oc apply -f deployment.yaml</text><rect x='330' y='196' width='170' height='64' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='415.0' y='225.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>kube-apiserver</text><text x='415.0' y='241.0' text-anchor='middle' font-size='10.5' fill='#444'>the only front door</text><rect x='345' y='370' width='140' height='54' rx='5' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='415.0' y='394.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>etcd</text><text x='415.0' y='410.0' text-anchor='middle' font-size='10.5' fill='#444'>cluster database</text><rect x='640' y='30' width='180' height='50' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='730.0' y='52.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Deployment controller</text><text x='730.0' y='68.0' text-anchor='middle' font-size='10.5' fill='#444'>creates ReplicaSet</text><rect x='640' y='110' width='180' height='50' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='730.0' y='132.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>ReplicaSet controller</text><text x='730.0' y='148.0' text-anchor='middle' font-size='10.5' fill='#444'>creates 3 Pods</text><rect x='640' y='190' width='180' height='50' rx='5' fill='#F8C8DC' stroke='#B03A73' stroke-width='1.3'/><text x='730.0' y='212.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Scheduler</text><text x='730.0' y='228.0' text-anchor='middle' font-size='10.5' fill='#444'>binds pod → node</text><rect x='610' y='270' width='410' height='180' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='620' y='288' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >Node: worker-2</text><rect x='630' y='300' width='120' height='46' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='690.0' y='320.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Kubelet</text><text x='690.0' y='336.0' text-anchor='middle' font-size='10.5' fill='#444'>node agent</text><rect x='780' y='300' width='100' height='46' rx='5' fill='#D9C7F0' stroke='#6A3FA0' stroke-width='1.3'/><text x='830.0' y='320.0' text-anchor='middle' font-size='13'  fill='#111'>CRI-O</text><text x='830.0' y='336.0' text-anchor='middle' font-size='10.5' fill='#444'>pull + run</text><rect x='900' y='300' width='100' height='46' rx='5' fill='#B8E6D9' stroke='#2A8C6E' stroke-width='1.3'/><text x='950.0' y='320.0' text-anchor='middle' font-size='13'  fill='#111'>CNI</text><text x='950.0' y='336.0' text-anchor='middle' font-size='10.5' fill='#444'>OVN-K: pod IP</text><rect x='700' y='375' width='212' height='50' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='708' y='383' width='60' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='738.0' y='404.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='776' y='383' width='60' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='806.0' y='404.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='844' y='383' width='60' height='34' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='874.0' y='404.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><path d='M160,228 L328,228' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='244.0' y='221' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>YAML</text><circle cx='244' cy='248' r='9' fill='#4B4BA0'/><text x='244' y='252' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>1</text><path d='M400,262 L400,368' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M430,368 L430,262' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='330' y='320' font-size='11' text-anchor='end' fill='#555'  font-style='italic'>write</text><text x='438' y='320' font-size='11' text-anchor='start' fill='#555'  font-style='italic'>watch</text><circle cx='370' cy='345' r='9' fill='#4B4BA0'/><text x='370' y='349' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>2</text><path d='M638,55 L520,55 L520,226 L502,226' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><circle cx='620' cy='43' r='9' fill='#4B4BA0'/><text x='620' y='47' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>3</text><path d='M638,135 L520,135 L520,226 L502,226' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><circle cx='620' cy='123' r='9' fill='#4B4BA0'/><text x='620' y='127' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>4</text><path d='M638,215 L520,215 L520,226 L502,226' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><circle cx='620' cy='203' r='9' fill='#4B4BA0'/><text x='620' y='207' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>5</text><path d='M628,323 L540,323 L540,236 L502,236' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><circle cx='600' cy='312' r='9' fill='#4B4BA0'/><text x='600' y='316' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>6</text><text x='512' y='100' font-size='11' text-anchor='end' fill='#555'  font-style='italic'>watch / update</text><path d='M750,323 L778,323' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M880,323 L898,323' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M690,346 L690,373' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><circle cx='955' cy='400' r='9' fill='#4B4BA0'/><text x='955' y='404' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>7</text><text x='860' y='438' font-size='11' text-anchor='middle' fill='#444'  >probes pass → Endpoints → traffic</text><circle cx='30' cy='40' r='9' fill='#4B4BA0'/><text x='30' y='44' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>8</text><text x='46' y='44' font-size='11' text-anchor='start' fill='#4B4BA0' font-weight='600' >Step 8: every controller loops forever — desired vs actual</text></svg></figure></section>
+<section class="a-section" aria-labelledby="s1"><h2 class="a-section__title" id="s1">Step 1 — You submit the request</h2><div class="a-prose"><p><code>oc</code> / <code>kubectl</code> sends the Deployment YAML to the API server (<strong>kube-apiserver</strong>). This is the only component you ever talk to — everything else reacts to it.</p></div><pre class="code" data-lang="bash"><code>oc apply -f deployment.yaml     # or oc create deployment / helm install</code></pre><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 880 170' width='880' height='170' style='width:100%;height:auto;max-width:880px;display:block;margin:auto' role='img' aria-label='Step 1: oc apply sends the Deployment YAML to the API server' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Step 1: oc apply sends the Deployment YAML to the API server</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='55' width='150' height='56' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='95.0' y='80.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>You</text><text x='95.0' y='96.0' text-anchor='middle' font-size='10.5' fill='#444'>terminal</text><rect x='240' y='50' width='210' height='66' rx='5' fill='#EFEFEF' stroke='#777777' stroke-width='1.3'/><text x='345.0' y='80.0' text-anchor='middle' font-size='13'  fill='#111'>deployment.yaml</text><text x='345.0' y='96.0' text-anchor='middle' font-size='10.5' fill='#444'>kind: Deployment · replicas: 3</text><rect x='530' y='50' width='190' height='66' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='625.0' y='80.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>kube-apiserver</text><text x='625.0' y='96.0' text-anchor='middle' font-size='10.5' fill='#444'>HTTPS :6443</text><path d='M170,83 L238,83' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='204.0' y='76' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>oc apply -f</text><path d='M450,83 L528,83' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='489.0' y='76' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>REST POST</text><text x='625' y='145' font-size='11.5' text-anchor='middle' fill='#4B4BA0' font-weight='600' >the only component you ever talk to</text><text x='130' y='145' font-size='11.5' text-anchor='middle' fill='#555'  font-style='italic'>or: oc create deployment · helm install</text><rect x='760' y='60' width='100' height='46' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='810.0' y='80.0' text-anchor='middle' font-size='13'  fill='#111'>everything else</text><text x='810.0' y='96.0' text-anchor='middle' font-size='10.5' fill='#444'>reacts to it</text><path d='M720,83 L758,83' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/></svg></figure></section>
+<section class="a-section" aria-labelledby="s2"><h2 class="a-section__title" id="s2">Step 2 — API server validates and stores</h2><div class="a-prose"><p>The API server:</p></div><ul class="steps"><li><strong>Authenticates</strong> you (who are you?) and <strong>authorizes</strong> you (can you create deployments? via RBAC)</li><li><strong>Validates</strong> the YAML against the schema (wrong field? rejected here)</li><li>Runs <strong>admission webhooks</strong> (OpenShift&#x27;s SCC / SecurityContextConstraints inject things like the user ID the container must run as)</li><li><strong>Writes the object to etcd</strong> — the cluster&#x27;s database. Only now does the Deployment &quot;exist&quot;</li></ul><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 290' width='1040' height='290' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Step 2: API server authenticates, authorizes via RBAC, validates schema, runs admission such as SCC, then writes to etcd' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Step 2: API server authenticates, authorizes via RBAC, validates schema, runs admission such as SCC, then writes to etcd</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='70' width='110' height='50' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='75.0' y='92.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Request</text><text x='75.0' y='108.0' text-anchor='middle' font-size='10.5' fill='#444'>Deployment YAML</text><rect x='150' y='20' width='690' height='150' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='160' y='38' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >kube-apiserver</text><rect x='170' y='68' width='148' height='54' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='244.0' y='92.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Authenticate</text><text x='244.0' y='108.0' text-anchor='middle' font-size='10.5' fill='#444'>who are you?</text><rect x='338' y='68' width='148' height='54' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='412.0' y='92.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Authorize</text><text x='412.0' y='108.0' text-anchor='middle' font-size='10.5' fill='#444'>RBAC: may you create?</text><path d='M318,95 L336,95' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='506' y='68' width='148' height='54' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='580.0' y='92.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Validate</text><text x='580.0' y='108.0' text-anchor='middle' font-size='10.5' fill='#444'>schema / fields</text><path d='M486,95 L504,95' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='674' y='68' width='148' height='54' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='748.0' y='92.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Admission</text><text x='748.0' y='108.0' text-anchor='middle' font-size='10.5' fill='#444'>SCC injects runAsUser</text><path d='M654,95 L672,95' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M130,95 L168,95' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='880' y='64' width='140' height='62' rx='5' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='950.0' y='92.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>etcd</text><text x='950.0' y='108.0' text-anchor='middle' font-size='10.5' fill='#444'>object stored ✓</text><path d='M842,95 L878,95' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M244,124 L244,205' fill='none' stroke='#C0392B' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ahr)'/><path d='M412,124 L412,205' fill='none' stroke='#C0392B' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ahr)'/><path d='M580,124 L580,205' fill='none' stroke='#C0392B' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ahr)'/><path d='M748,124 L748,205' fill='none' stroke='#C0392B' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ahr)'/><rect x='170' y='207' width='652' height='34' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='496.0' y='228.5' text-anchor='middle' font-size='13'  fill='#111'>Rejected here → 401 Unauthorized · 403 Forbidden · 422 Invalid · admission denied</text><rect x='860' y='180' width='170' height='80' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='945.0' y='217.0' text-anchor='middle' font-size='13'  fill='#111'>Nothing runs yet</text><text x='945.0' y='233.0' text-anchor='middle' font-size='10.5' fill='#444'>desired state only: &quot;3 replicas&quot;</text><path d='M950,128 L950,178' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/></svg></figure><div class="a-callout a-callout--risk"><p class="a-callout__title">Important</p>Nothing is running yet. It&#x27;s just a desired state written in etcd — &quot;I want 3 replicas of this image.&quot;</div></section>
+<section class="a-section" aria-labelledby="s3"><h2 class="a-section__title" id="s3">Step 3 — Deployment controller reacts</h2><div class="a-prose"><p>The <strong>controller manager</strong> has dozens of controllers watching the API server for changes. The <strong>Deployment controller</strong> sees the new Deployment and creates a <strong>ReplicaSet</strong> object with <code>replicas: 3</code> and your pod template.</p></div></section>
+<section class="a-section" aria-labelledby="s4"><h2 class="a-section__title" id="s4">Step 4 — ReplicaSet controller creates Pods</h2><div class="a-prose"><p>The <strong>ReplicaSet controller</strong> sees &quot;3 desired, 0 exist&quot; and creates 3 <strong>Pod</strong> objects in etcd. Pods get names like <code>myapp-7d9f4b8c6-x2vkl</code>. At this point each pod is <code>Pending</code> with <code>spec.nodeName</code> empty.</p></div><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 250' width='1040' height='250' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Steps 3 and 4: Deployment controller creates a ReplicaSet; ReplicaSet controller creates three Pending pods' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Steps 3 and 4: Deployment controller creates a ReplicaSet; ReplicaSet controller creates three Pending pods</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='90' width='130' height='56' rx='5' fill='#EFEFEF' stroke='#777777' stroke-width='1.3'/><text x='85.0' y='115.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Deployment</text><text x='85.0' y='131.0' text-anchor='middle' font-size='10.5' fill='#444'>myapp · replicas: 3</text><rect x='200' y='90' width='150' height='56' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='275.0' y='115.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Deployment ctrl</text><text x='275.0' y='131.0' text-anchor='middle' font-size='10.5' fill='#444'>watches Deployments</text><rect x='400' y='90' width='150' height='56' rx='5' fill='#EFEFEF' stroke='#777777' stroke-width='1.3'/><text x='475.0' y='115.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>ReplicaSet</text><text x='475.0' y='131.0' text-anchor='middle' font-size='10.5' fill='#444'>myapp-7d9f4b8c6</text><rect x='600' y='90' width='150' height='56' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='675.0' y='115.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>ReplicaSet ctrl</text><text x='675.0' y='131.0' text-anchor='middle' font-size='10.5' fill='#444'>3 desired · 0 exist</text><path d='M150,118 L198,118' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M350,118 L398,118' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='374.0' y='111' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>creates</text><path d='M550,118 L598,118' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><circle cx='275' cy='78' r='9' fill='#4B4BA0'/><text x='275' y='82' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>3</text><circle cx='675' cy='78' r='9' fill='#4B4BA0'/><text x='675' y='82' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>4</text><rect x='790' y='40' width='230' height='160' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='802' y='50' width='206' height='40' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='905.0' y='67.0' text-anchor='middle' font-size='13'  fill='#111'>myapp-7d9f4b8c6-x2vkl</text><text x='905.0' y='83.0' text-anchor='middle' font-size='10.5' fill='#444'>Pending · nodeName: &quot;&quot;</text><rect x='802' y='100' width='206' height='40' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='905.0' y='117.0' text-anchor='middle' font-size='13'  fill='#111'>myapp-7d9f4b8c6-9qzpt</text><text x='905.0' y='133.0' text-anchor='middle' font-size='10.5' fill='#444'>Pending · nodeName: &quot;&quot;</text><rect x='802' y='150' width='206' height='40' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='905.0' y='167.0' text-anchor='middle' font-size='13'  fill='#111'>myapp-7d9f4b8c6-mn4wd</text><text x='905.0' y='183.0' text-anchor='middle' font-size='10.5' fill='#444'>Pending · nodeName: &quot;&quot;</text><path d='M750,118 L788,118' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='520' y='232' font-size='11.5' text-anchor='middle' fill='#444'  font-style='italic'>Controller manager = dozens of controllers, each watching the API server and reconciling one kind of object</text></svg></figure></section>
+<section class="a-section" aria-labelledby="s5"><h2 class="a-section__title" id="s5">Step 5 — Scheduler picks a node</h2><div class="a-prose"><p>The <strong>scheduler</strong> watches for pods with no node assigned. For each pod it:</p></div><ul class="steps"><li><strong>Filters</strong> nodes: enough CPU/memory? right labels/taints? <code>NotReady</code> nodes are excluded — this is exactly why pods were stuck on the lab cluster: only 2 Ready nodes</li><li><strong>Scores</strong> the remaining nodes (spread across zones/nodes, locality, etc.)</li><li>Writes <code>spec.nodeName: worker-2</code> — this is the <strong>binding</strong></li></ul><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 330' width='1040' height='330' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Step 5: scheduler filters nodes, scores the rest, then binds the pod to the winner' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Step 5: scheduler filters nodes, scores the rest, then binds the pod to the winner</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='130' width='150' height='56' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='95.0' y='155.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Pending pod</text><text x='95.0' y='171.0' text-anchor='middle' font-size='10.5' fill='#444'>nodeName: &quot;&quot;</text><rect x='210' y='130' width='120' height='56' rx='5' fill='#F8C8DC' stroke='#B03A73' stroke-width='1.3'/><text x='270.0' y='155.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Scheduler</text><text x='270.0' y='171.0' text-anchor='middle' font-size='10.5' fill='#444'>watches unbound</text><path d='M170,158 L208,158' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='360' y='20' width='300' height='290' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='370' y='38' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >① Filter — can it run here?</text><rect x='380' y='50' width='200' height='48' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='480.0' y='71.0' text-anchor='middle' font-size='13'  fill='#111'>worker-1</text><text x='480.0' y='87.0' text-anchor='middle' font-size='10.5' fill='#444'>NotReady</text><path d='M553,67 L567,81 M567,67 L553,81' stroke='#C0392B' stroke-width='2.4'/><rect x='380' y='114' width='200' height='48' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='480.0' y='135.0' text-anchor='middle' font-size='13'  fill='#111'>master-0</text><text x='480.0' y='151.0' text-anchor='middle' font-size='10.5' fill='#444'>taint NoSchedule</text><path d='M553,131 L567,145 M567,131 L553,145' stroke='#C0392B' stroke-width='2.4'/><rect x='380' y='178' width='200' height='48' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='480.0' y='199.0' text-anchor='middle' font-size='13'  fill='#111'>worker-2</text><text x='480.0' y='215.0' text-anchor='middle' font-size='10.5' fill='#444'>4 CPU free ✓</text><path d='M553,202 L558,208 L568,195' fill='none' stroke='#2E8B3A' stroke-width='2.6'/><rect x='380' y='242' width='200' height='48' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='480.0' y='263.0' text-anchor='middle' font-size='13'  fill='#111'>worker-3</text><text x='480.0' y='279.0' text-anchor='middle' font-size='10.5' fill='#444'>2 CPU free ✓</text><path d='M553,266 L558,272 L568,259' fill='none' stroke='#2E8B3A' stroke-width='2.6'/><path d='M330,158 L345,158' fill='none' stroke='#222' stroke-width='1.3'  /><path d='M345,158 L345,84 Q345,74 355,74 L378,74' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><path d='M345,158 L345,148 Q345,138 355,138 L378,138' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><path d='M345,158 L345,192 Q345,202 355,202 L378,202' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><path d='M345,158 L345,256 Q345,266 355,266 L378,266' fill='none' stroke='#222' stroke-width='1.3' marker-end='url(#ah)'/><rect x='690' y='140' width='160' height='170' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='700' y='158' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >② Score</text><rect x='705' y='175' width='130' height='44' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='770.0' y='194.0' text-anchor='middle' font-size='13'  fill='#111'>worker-2</text><text x='770.0' y='210.0' text-anchor='middle' font-size='10.5' fill='#444'>score 92 ★</text><rect x='705' y='245' width='130' height='44' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='770.0' y='264.0' text-anchor='middle' font-size='13'  fill='#111'>worker-3</text><text x='770.0' y='280.0' text-anchor='middle' font-size='10.5' fill='#444'>score 71</text><path d='M582,202 L640,202 L640,197 L703,197' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M582,266 L703,266' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='880' y='160' width='150' height='60' rx='5' fill='#F8C8DC' stroke='#B03A73' stroke-width='1.3'/><text x='955.0' y='187.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>③ Bind</text><text x='955.0' y='203.0' text-anchor='middle' font-size='10.5' fill='#444'>spec.nodeName: worker-2</text><path d='M835,190 L878,190' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='945' y='260' font-size='11' text-anchor='middle' fill='#C0392B' font-weight='600' >NotReady nodes are</text><text x='945' y='275' font-size='11' text-anchor='middle' fill='#C0392B' font-weight='600' >filtered out → fewer</text><text x='945' y='290' font-size='11' text-anchor='middle' fill='#C0392B' font-weight='600' >places pods can go</text></svg></figure></section>
+<section class="a-section" aria-labelledby="s6"><h2 class="a-section__title" id="s6">Step 6 — Kubelet takes over on the node</h2><div class="a-prose"><p>The <strong>kubelet</strong> on the chosen node sees a pod assigned to it:</p></div><ul class="steps"><li><strong>Pulls the image</strong> via <strong>CRI-O</strong> (the container runtime): <code>crio</code> → registry → image layers stored locally</li><li>Asks CRI-O to create the <strong>pod sandbox + containers</strong></li><li><strong>Mounts volumes</strong>, injects ConfigMaps / Secrets / Services env vars</li><li><strong>Runs the entrypoint</strong> → container starts</li></ul><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 300' width='1040' height='300' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Step 6: kubelet on the chosen node pulls the image via CRI-O, creates sandbox and containers, mounts volumes, starts entrypoint' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Step 6: kubelet on the chosen node pulls the image via CRI-O, creates sandbox and containers, mounts volumes, starts entrypoint</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='30' width='150' height='50' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='95.0' y='52.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>kube-apiserver</text><text x='95.0' y='68.0' text-anchor='middle' font-size='10.5' fill='#444'>pod bound to worker-2</text><rect x='860' y='30' width='160' height='50' rx='5' fill='#FFE7B3' stroke='#B7862B' stroke-width='1.3'/><text x='940.0' y='52.0' text-anchor='middle' font-size='13'  fill='#111'>Image registry</text><text x='940.0' y='68.0' text-anchor='middle' font-size='10.5' fill='#444'>quay.io / local registry</text><rect x='20' y='110' width='1000' height='175' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='30' y='128' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >Node: worker-2</text><rect x='40' y='160' width='130' height='56' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='105.0' y='185.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Kubelet</text><text x='105.0' y='201.0' text-anchor='middle' font-size='10.5' fill='#444'>sees new pod</text><path d='M95,82 L95,158' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='103' y='100' font-size='11' text-anchor='start' fill='#555'  font-style='italic'>watch</text><rect x='210' y='160' width='180' height='56' rx='5' fill='#D9C7F0' stroke='#6A3FA0' stroke-width='1.3'/><text x='300.0' y='185.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Pull image</text><text x='300.0' y='201.0' text-anchor='middle' font-size='10.5' fill='#444'>CRI-O → registry</text><circle cx='222' cy='172' r='9' fill='#6A3FA0'/><text x='222' y='176' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>a</text><path d='M170,188 L208,188' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='410' y='160' width='180' height='56' rx='5' fill='#D9C7F0' stroke='#6A3FA0' stroke-width='1.3'/><text x='500.0' y='185.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Sandbox + containers</text><text x='500.0' y='201.0' text-anchor='middle' font-size='10.5' fill='#444'>CRI-O creates</text><circle cx='422' cy='172' r='9' fill='#6A3FA0'/><text x='422' y='176' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>b</text><path d='M372,188 L408,188' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='610' y='160' width='180' height='56' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='700.0' y='185.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Mount &amp; inject</text><text x='700.0' y='201.0' text-anchor='middle' font-size='10.5' fill='#444'>volumes, ConfigMaps, Secrets</text><circle cx='622' cy='172' r='9' fill='#6A3FA0'/><text x='622' y='176' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>c</text><path d='M572,188 L608,188' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='810' y='160' width='180' height='56' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='900.0' y='185.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Run entrypoint</text><text x='900.0' y='201.0' text-anchor='middle' font-size='10.5' fill='#444'>container starts</text><circle cx='822' cy='172' r='9' fill='#6A3FA0'/><text x='822' y='176' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>d</text><path d='M772,188 L808,188' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M300,158 L300,55 L858,55' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><text x='580' y='48' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>pull image layers → stored locally</text><rect x='840' y='232' width='130' height='38' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='905.0' y='255.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><path d='M900,216 L900,230' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/></svg></figure></section>
+<section class="a-section" aria-labelledby="s7"><h2 class="a-section__title" id="s7">Step 7 — Health checks & networking</h2><ul class="steps"><li><strong>Startup / readiness / liveness probes</strong> run — readiness must pass before the pod gets traffic</li><li><strong>CNI plugin</strong> (OVN-Kubernetes on OCP) gave the pod its IP at sandbox creation</li><li>Once Ready, the <strong>Endpoints / EndpointSlice controller</strong> adds the pod&#x27;s IP to the Service&#x27;s endpoint list → traffic flows</li><li>Kubelet <strong>reports status</strong> back to the API server → <code>kubectl get pods</code> shows <code>Running 1/1</code></li></ul><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 300' width='1040' height='300' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Step 7: CNI gives the pod an IP, probes run, readiness adds the pod to EndpointSlice, Service sends traffic, kubelet reports Running' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Step 7: CNI gives the pod an IP, probes run, readiness adds the pod to EndpointSlice, Service sends traffic, kubelet reports Running</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='60' width='140' height='56' rx='5' fill='#B8E6D9' stroke='#2A8C6E' stroke-width='1.3'/><text x='90.0' y='85.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>CNI (OVN-K)</text><text x='90.0' y='101.0' text-anchor='middle' font-size='10.5' fill='#444'>pod IP 10.128.2.15</text><rect x='200' y='60' width='170' height='56' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='285.0' y='85.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Probes</text><text x='285.0' y='101.0' text-anchor='middle' font-size='10.5' fill='#444'>startup · readiness · liveness</text><rect x='410' y='60' width='110' height='56' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='465.0' y='85.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Ready ✓</text><text x='465.0' y='101.0' text-anchor='middle' font-size='10.5' fill='#444'>readiness passed</text><rect x='560' y='60' width='170' height='56' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='645.0' y='85.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>EndpointSlice</text><text x='645.0' y='101.0' text-anchor='middle' font-size='10.5' fill='#444'>+ 10.128.2.15:8080</text><rect x='770' y='66' width='100' height='44' rx='5' fill='#FFFFFF' stroke='#333333' stroke-width='1.3'/><text x='820.0' y='85.0' text-anchor='middle' font-size='13'  fill='#111'>Service</text><text x='820.0' y='101.0' text-anchor='middle' font-size='10.5' fill='#444'>myapp</text><rect x='910' y='63' width='110' height='50' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='965.0' y='85.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Traffic</text><text x='965.0' y='101.0' text-anchor='middle' font-size='10.5' fill='#444'>reaches pod</text><path d='M160,88 L198,88' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M370,88 L408,88' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M520,88 L558,88' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M730,88 L768,88' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M870,88 L908,88' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='200' y='190' width='170' height='56' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='285.0' y='215.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Kubelet</text><text x='285.0' y='231.0' text-anchor='middle' font-size='10.5' fill='#444'>reports pod status</text><rect x='450' y='190' width='170' height='56' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='535.0' y='215.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>kube-apiserver</text><text x='535.0' y='231.0' text-anchor='middle' font-size='10.5' fill='#444'>status: Running</text><rect x='700' y='190' width='230' height='56' rx='5' fill='#EFEFEF' stroke='#777777' stroke-width='1.3'/><text x='815.0' y='215.0' text-anchor='middle' font-size='13'  fill='#111'>oc get pods</text><text x='815.0' y='231.0' text-anchor='middle' font-size='10.5' fill='#444'>myapp-…-x2vkl   1/1   Running</text><path d='M285,118 L285,188' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><path d='M370,218 L448,218' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M620,218 L698,218' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='520' y='285' font-size='11.5' text-anchor='middle' fill='#C0392B' font-weight='600' >No readiness = no endpoint = no traffic, even if the container is running</text></svg></figure></section>
+<section class="a-section" aria-labelledby="s8"><h2 class="a-section__title" id="s8">Step 8 — The loop never stops</h2><div class="a-prose"><p>Every controller runs a <strong>reconcile loop</strong>: &quot;desired vs. actual.&quot; Pod crashes? ReplicaSet notices 2/3 and creates a replacement — it doesn&#x27;t restart it, it makes a <strong>new pod</strong> (possibly on another node).</p></div><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 320' width='1040' height='320' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Step 8: reconcile loop observes actual state, compares with desired, and creates a new pod when one crashes' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Step 8: reconcile loop observes actual state, compares with desired, and creates a new pod when one crashes</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><circle cx='230' cy='160' r='105' fill='none' stroke='#C2711B' stroke-width='2' stroke-dasharray='7 5'/><rect x='160' y='30' width='140' height='46' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='230.0' y='50.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Observe</text><text x='230.0' y='66.0' text-anchor='middle' font-size='10.5' fill='#444'>actual: 2 pods</text><rect x='270' y='210' width='140' height='46' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='340.0' y='230.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Compare</text><text x='340.0' y='246.0' text-anchor='middle' font-size='10.5' fill='#444'>desired 3 ≠ actual 2</text><rect x='50' y='210' width='140' height='46' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='120.0' y='230.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Act</text><text x='120.0' y='246.0' text-anchor='middle' font-size='10.5' fill='#444'>create a NEW pod</text><text x='230' y='164' font-size='14' text-anchor='middle' fill='#C2711B' font-weight='700' >reconcile</text><text x='230' y='182' font-size='12' text-anchor='middle' fill='#C2711B'  >forever</text><rect x='470' y='30' width='260' height='120' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='480' y='48' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >worker-2 (before)</text><rect x='490' y='70' width='62' height='36' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='521.0' y='92.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='566' y='70' width='62' height='36' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='597.0' y='92.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='642' y='70' width='62' height='36' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='673.0' y='92.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><path d='M663,78 L683,98 M683,78 L663,98' stroke='#C0392B' stroke-width='2.4'/><text x='673' y='128' font-size='11' text-anchor='middle' fill='#C0392B' font-weight='600' >crashed</text><rect x='470' y='180' width='260' height='120' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='480' y='198' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >worker-2</text><rect x='490' y='220' width='62' height='36' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='521.0' y='242.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='566' y='220' width='62' height='36' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='597.0' y='242.5' text-anchor='middle' font-size='13'  fill='#111'>Pod</text><rect x='760' y='180' width='260' height='120' rx='8' fill='#F7F7FD' stroke='#4B4BA0' stroke-dasharray='6 4'/><text x='770' y='198' font-size='11.5' text-anchor='start' fill='#4B4BA0' font-weight='600' >worker-3 (maybe another node)</text><rect x='780' y='220' width='120' height='36' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='840.0' y='242.5' text-anchor='middle' font-size='13'  fill='#111'>Pod (new name)</text><text x='890' y='100' font-size='12' text-anchor='middle' fill='#444' font-weight='600' >not restarted —</text><text x='890' y='118' font-size='12' text-anchor='middle' fill='#444' font-weight='600' >replaced by a new pod</text><path d='M340,120 L468,90' fill='none' stroke='#222' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ah)'/><text x='400' y='95' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>observe</text><path d='M700,152 L700,165 L840,165 L840,218' fill='none' stroke='#C2711B' stroke-width='1.3' stroke-dasharray='5 4' marker-end='url(#ahr)'/><text x='850' y='160' font-size='11' text-anchor='start' fill='#C2711B'  font-style='italic'>replacement scheduled</text></svg></figure><div class="a-callout a-callout--decision"><p class="a-callout__title">Core idea of Kubernetes</p>Declarative desired state + continuous reconciliation.</div></section>
+<section class="a-section" aria-labelledby="rollout"><h2 class="a-section__title" id="rollout">On <code>oc rollout</code> / update</h2><div class="a-prose"><p>Same flow, one twist: the Deployment controller creates a <strong>new ReplicaSet</strong> (<code>myapp-8f4e...</code>) and gradually <strong>scales it up</strong> while <strong>scaling the old one down</strong> — <code>maxSurge</code> / <code>maxUnavailable</code> control the pace. The old ReplicaSet is kept (scaled to 0) for <code>oc rollout undo</code>.</p></div><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 330' width='1040' height='330' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='oc rollout: Deployment controller scales new ReplicaSet up and old ReplicaSet down, keeping the old one at zero for undo' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>oc rollout: Deployment controller scales new ReplicaSet up and old ReplicaSet down, keeping the old one at zero for undo</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='130' width='140' height='60' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='90.0' y='157.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Deployment</text><text x='90.0' y='173.0' text-anchor='middle' font-size='10.5' fill='#444'>image: v1 → v2</text><text x='240' y='40' font-size='12' text-anchor='middle' fill='#2C7A8A' font-weight='700' >old RS  myapp-7d9f…  (v1)</text><text x='240' y='250' font-size='12' text-anchor='middle' fill='#C2711B' font-weight='700' >new RS  myapp-8f4e…  (v2)</text><text x='385' y='30' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>start</text><rect x='330' y='45' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='330' y='170' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='338' y='52' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='360.0' y='70.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='390' y='52' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='412.0' y='70.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='338' y='88' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='360.0' y='106.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><text x='386' y='145' font-size='11' text-anchor='middle' fill='#333'  >3 old · 0 new</text><path d='M444,148 L468,148' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='525' y='30' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>surge +1</text><rect x='470' y='45' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='470' y='170' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='478' y='52' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='500.0' y='70.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='530' y='52' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='552.0' y='70.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='478' y='88' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='500.0' y='106.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='478' y='177' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='500.0' y='195.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><text x='526' y='145' font-size='11' text-anchor='middle' fill='#333'  >3 old · 1 new</text><path d='M584,148 L608,148' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='665' y='30' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>step</text><rect x='610' y='45' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='610' y='170' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='618' y='52' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='640.0' y='70.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='670' y='52' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='692.0' y='70.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='618' y='177' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='640.0' y='195.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><rect x='670' y='177' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='692.0' y='195.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><text x='666' y='145' font-size='11' text-anchor='middle' fill='#333'  >2 old · 2 new</text><path d='M724,148 L748,148' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='805' y='30' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>step</text><rect x='750' y='45' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='750' y='170' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='758' y='52' width='44' height='28' rx='10' fill='#A9E1EE' stroke='#2C7A8A' stroke-width='1.3'/><text x='780.0' y='70.5' text-anchor='middle' font-size='13'  fill='#111'>v1</text><rect x='758' y='177' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='780.0' y='195.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><rect x='810' y='177' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='832.0' y='195.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><rect x='758' y='213' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='780.0' y='231.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><text x='806' y='145' font-size='11' text-anchor='middle' fill='#333'  >1 old · 3 new</text><path d='M864,148 L888,148' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='945' y='30' font-size='11' text-anchor='middle' fill='#555'  font-style='italic'>done</text><rect x='890' y='45' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='890' y='170' width='112' height='80' fill='none' stroke='#555' stroke-dasharray='3 3'/><rect x='898' y='177' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='920.0' y='195.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><rect x='950' y='177' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='972.0' y='195.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><rect x='898' y='213' width='44' height='28' rx='10' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='920.0' y='231.5' text-anchor='middle' font-size='13'  fill='#111'>v2</text><text x='946' y='145' font-size='11' text-anchor='middle' fill='#333'  >0 old · 3 new</text><path d='M160,150 L200,150 L200,85 L328,85' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M200,150 L200,210 L328,210' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='330' y='270' width='400' height='44' rx='5' fill='#EFEFEF' stroke='#777777' stroke-width='1.3'/><text x='530.0' y='296.5' text-anchor='middle' font-size='13'  fill='#111'>maxSurge / maxUnavailable control the pace</text><rect x='760' y='270' width='260' height='44' rx='5' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='890.0' y='296.5' text-anchor='middle' font-size='13'  fill='#111'>old RS kept at 0 → oc rollout undo</text></svg></figure></section>
+<section class="a-section" aria-labelledby="model"><h2 class="a-section__title" id="model">The mental model</h2><pre class="code" data-lang="text"><code>You → API server → etcd (desired state)
+                        ↓ watch
+   Deployment ctrl → ReplicaSet ctrl → Pods (Pending)
+                        ↓
+                   Scheduler → binds pod → node
+                        ↓
+              Kubelet + CRI-O + CNI → container runs
+                        ↓
+              Probes pass → Endpoints → traffic</code></pre><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 560' width='760' height='560' style='width:100%;height:auto;max-width:760px;display:block;margin:auto' role='img' aria-label='Mental model: You, API server, etcd; controllers create pods; scheduler binds; kubelet with CRI-O and CNI runs; probes and endpoints send traffic' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Mental model: You, API server, etcd; controllers create pods; scheduler binds; kubelet with CRI-O and CNI runs; probes and endpoints send traffic</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='30' y='20' width='110' height='48' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='85.0' y='48.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>You</text><rect x='210' y='20' width='150' height='48' rx='5' fill='#BDBDEB' stroke='#4B4BA0' stroke-width='1.3'/><text x='285.0' y='48.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>API server</text><rect x='430' y='20' width='190' height='48' rx='5' fill='#FFF4A3' stroke='#A89400' stroke-width='1.3'/><text x='525.0' y='41.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>etcd</text><text x='525.0' y='57.0' text-anchor='middle' font-size='10.5' fill='#444'>desired state</text><path d='M140,44 L208,44' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M360,44 L428,44' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M525,70 L525,118' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><text x='533' y='98.0' font-size='11' text-anchor='start' fill='#555'  font-style='italic'>watch</text><rect x='60' y='120' width='180' height='48' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='150.0' y='148.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Deployment ctrl</text><rect x='290' y='120' width='180' height='48' rx='5' fill='#FFD3A1' stroke='#C2711B' stroke-width='1.3'/><text x='380.0' y='148.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>ReplicaSet ctrl</text><rect x='520' y='120' width='180' height='48' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='610.0' y='148.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Pods (Pending)</text><path d='M240,144 L288,144' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M470,144 L518,144' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><path d='M380,170 L380,218' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='200' y='220' width='360' height='52' rx='5' fill='#F8C8DC' stroke='#B03A73' stroke-width='1.3'/><text x='380.0' y='250.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Scheduler → binds pod → node</text><path d='M380,274 L380,322' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='120' y='324' width='520' height='52' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='380.0' y='354.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Kubelet + CRI-O + CNI → container runs</text><path d='M380,378 L380,426' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='170' y='428' width='420' height='52' rx='5' fill='#C9E7A7' stroke='#4F7F2A' stroke-width='1.3'/><text x='380.0' y='458.5' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Probes pass → Endpoints → traffic</text><text x='380' y='520' font-size='12.5' text-anchor='middle' fill='#4B4BA0' font-weight='700' >Declare it in etcd → everyone else makes reality match, forever.</text></svg></figure><div class="a-callout a-callout--decision"><p class="a-callout__title">One-line summary</p>You declare what you want in etcd; controllers, the scheduler, and kubelets independently conspire to make reality match it — and keep matching it forever.</div></section>
+<section class="a-section" aria-labelledby="breaks"><h2 class="a-section__title" id="breaks">Where it commonly breaks</h2><div class="a-prose"><p>Both of these have been seen on the lab cluster:</p></div><ul class="steps"><li>Stuck <code>Pending</code> → <strong>scheduler found no node</strong> (NotReady nodes, no capacity, taints)</li><li><code>Pending</code> forever <strong>with node assigned</strong> → <strong>kubelet can&#x27;t pull the image or can&#x27;t reach the API</strong> (expired certs — see Issue 07)</li></ul><figure class="dg"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1040 310' width='1040' height='310' style='width:100%;height:auto;max-width:1040px;display:block;margin:auto' role='img' aria-label='Where it breaks: Pending with no node means scheduler failure; Pending with a node assigned means kubelet cannot pull image or reach the API' font-family='Segoe UI, Helvetica, Arial, sans-serif'><title>Where it breaks: Pending with no node means scheduler failure; Pending with a node assigned means kubelet cannot pull image or reach the API</title><defs><marker id='ah' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#222'/></marker><marker id='ahr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='userSpaceOnUse' markerWidth='10' markerHeight='10' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#C0392B'/></marker></defs><rect width='100%' height='100%' fill='#FFFFFF'/><rect x='20' y='20' width='490' height='275' rx='8' fill='#F7F7FD' stroke='#C0392B' stroke-dasharray='6 4'/><text x='30' y='38' font-size='11.5' text-anchor='start' fill='#C0392B' font-weight='600' >Stuck Pending — NO node assigned</text><rect x='40' y='60' width='150' height='50' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='115.0' y='82.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Pod</text><text x='115.0' y='98.0' text-anchor='middle' font-size='10.5' fill='#444'>nodeName: &quot;&quot;</text><rect x='250' y='60' width='150' height='50' rx='5' fill='#F8C8DC' stroke='#B03A73' stroke-width='1.3'/><text x='325.0' y='82.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Scheduler</text><text x='325.0' y='98.0' text-anchor='middle' font-size='10.5' fill='#444'>0 nodes fit</text><path d='M411,76 L429,94 M429,76 L411,94' stroke='#C0392B' stroke-width='2.4'/><path d='M190,85 L248,85' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='60' y='135' width='300' height='36' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='210.0' y='157.5' text-anchor='middle' font-size='13'  fill='#111'>NotReady nodes</text><rect x='60' y='179' width='300' height='36' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='210.0' y='201.5' text-anchor='middle' font-size='13'  fill='#111'>no CPU / memory capacity</text><rect x='60' y='223' width='300' height='36' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='210.0' y='245.5' text-anchor='middle' font-size='13'  fill='#111'>taints not tolerated</text><text x='265' y='284' font-size='11' text-anchor='middle' fill='#444'  font-style='italic'>check: oc describe pod → Events: FailedScheduling</text><rect x='530' y='20' width='490' height='275' rx='8' fill='#F7F7FD' stroke='#C0392B' stroke-dasharray='6 4'/><text x='540' y='38' font-size='11.5' text-anchor='start' fill='#C0392B' font-weight='600' >Pending forever — node IS assigned</text><rect x='550' y='60' width='150' height='50' rx='10' fill='#EEEEEE' stroke='#888888' stroke-width='1.3'/><text x='625.0' y='82.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Pod</text><text x='625.0' y='98.0' text-anchor='middle' font-size='10.5' fill='#444'>nodeName: worker-2</text><rect x='760' y='60' width='150' height='50' rx='5' fill='#C7D7F5' stroke='#2F5FB3' stroke-width='1.3'/><text x='835.0' y='82.0' text-anchor='middle' font-size='13' font-weight='600' fill='#111'>Kubelet</text><text x='835.0' y='98.0' text-anchor='middle' font-size='10.5' fill='#444'>stuck</text><path d='M921,76 L939,94 M939,76 L921,94' stroke='#C0392B' stroke-width='2.4'/><path d='M700,85 L758,85' fill='none' stroke='#222' stroke-width='1.3'  marker-end='url(#ah)'/><rect x='570' y='135' width='330' height='36' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='735.0' y='157.5' text-anchor='middle' font-size='13'  fill='#111'>can&#x27;t pull image (ErrImagePull)</text><rect x='570' y='179' width='330' height='36' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='735.0' y='201.5' text-anchor='middle' font-size='13'  fill='#111'>can&#x27;t reach API (expired kubelet certs)</text><rect x='570' y='223' width='330' height='36' rx='5' fill='#FFD6D6' stroke='#C0392B' stroke-width='1.3'/><text x='735.0' y='245.5' text-anchor='middle' font-size='13'  fill='#111'>volume / secret mount failure</text><text x='775' y='284' font-size='11' text-anchor='middle' fill='#444'  font-style='italic'>check: oc get csr · oc describe node · kubelet logs</text></svg></figure></section>
+
+      <footer class="a-footnote">Annotations: OpenShift (OCP 4.x) with CRI-O and OVN-Kubernetes; the same flow applies to upstream Kubernetes with kubectl.</footer>
+    </main>
+    <script>
+/* Devin artifact kit — self-contained behavior for standalone HTML artifacts.
+   No build step, no imports, no network calls. Every widget is progressive
+   enhancement: the markup stays readable and printable with scripting off. */
+(function () {
+  "use strict";
+
+  var root = document.documentElement;
+  var THEMES = { light: 1, dark: 1 };
+
+  function showError(message) {
+    document.querySelectorAll("[data-a-error]").forEach(function (region) {
+      region.hidden = false;
+      var detail = region.querySelector("[data-a-error-detail]");
+      if (detail && message) detail.textContent = message;
+    });
+  }
+
+  window.addEventListener("error", function (event) {
+    showError(event.message);
+  });
+  window.addEventListener("unhandledrejection", function (event) {
+    showError(String(event.reason || "An interactive control failed."));
+  });
+
+  /* ---------- theme ----------
+     Order of precedence:
+       1. an explicit host signal (`?theme=`/`#theme=`, a `devin:theme`
+          message from an embedding page, or a preset `data-theme`),
+       2. a reader's in-document choice,
+       3. the OS/browser preference via `prefers-color-scheme`.
+     Hosts that expose no signal simply fall through to step 3. */
+  function hostTheme() {
+    var search = new URLSearchParams(
+      window.location.search + "&" + window.location.hash.replace(/^#/, "")
+    );
+    var fromUrl = search.get("theme");
+    if (fromUrl && THEMES[fromUrl]) return fromUrl;
+    var preset = root.getAttribute("data-theme");
+    if (preset && THEMES[preset]) return preset;
+    return null;
+  }
+
+  function systemTheme() {
+    return window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  var pinned = hostTheme();
+
+  function apply(theme) {
+    root.setAttribute("data-theme", theme);
+    document.querySelectorAll("[data-a-theme-toggle]").forEach(function (el) {
+      var label =
+        theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+      el.setAttribute("aria-label", label);
+      el.setAttribute("title", label);
+    });
+  }
+
+  apply(pinned || systemTheme());
+
+  if (window.matchMedia) {
+    var media = window.matchMedia("(prefers-color-scheme: dark)");
+    var onChange = function () {
+      if (!pinned) apply(systemTheme());
+    };
+    if (media.addEventListener) media.addEventListener("change", onChange);
+    else if (media.addListener) media.addListener(onChange);
+  }
+
+  window.addEventListener("message", function (event) {
+    if (window.parent === window || event.source !== window.parent) return;
+    var data = event.data;
+    if (!data || data.type !== "devin:theme" || !THEMES[data.theme]) return;
+    pinned = data.theme;
+    apply(pinned);
+  });
+
+  document.addEventListener("click", function (event) {
+    var toggle = event.target.closest("[data-a-theme-toggle]");
+    if (!toggle) return;
+    pinned = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    apply(pinned);
+  });
+
+  /* ---------- tabs ----------
+     <div data-a-tabs role="tablist">
+       <button class="a-btn" role="tab" aria-controls="panel-id">Label</button>
+     Panels are plain elements toggled with `hidden`, so print reveals the
+     active one and `.a-print-reveal` can opt others in. */
+  function selectTab(list, tab) {
+    list.querySelectorAll('[role="tab"]').forEach(function (candidate) {
+      var selected = candidate === tab;
+      candidate.setAttribute("aria-selected", String(selected));
+      candidate.tabIndex = selected ? 0 : -1;
+      var panel = document.getElementById(
+        candidate.getAttribute("aria-controls") || ""
+      );
+      if (panel) panel.hidden = !selected;
+    });
+  }
+
+  document.querySelectorAll("[data-a-tabs]").forEach(function (list) {
+    var tabs = Array.prototype.slice.call(
+      list.querySelectorAll('[role="tab"]')
+    );
+    if (!tabs.length) return;
+    var active =
+      tabs.filter(function (t) {
+        return t.getAttribute("aria-selected") === "true";
+      })[0] || tabs[0];
+    selectTab(list, active);
+
+    list.addEventListener("click", function (event) {
+      var tab = event.target.closest('[role="tab"]');
+      if (tab) selectTab(list, tab);
+    });
+
+    list.addEventListener("keydown", function (event) {
+      var step =
+        event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      event.preventDefault();
+      var current = tabs.indexOf(document.activeElement);
+      var next = tabs[(current + step + tabs.length) % tabs.length];
+      next.focus();
+      selectTab(list, next);
+    });
+  });
+
+  /* ---------- row filters ----------
+     <select data-a-filter="#table-id" data-a-filter-key="team">
+     Rows opt in with a matching `data-team` attribute; "all" clears it. */
+  document.querySelectorAll("[data-a-filter]").forEach(function (control) {
+    var target = document.querySelector(control.getAttribute("data-a-filter"));
+    var key = control.getAttribute("data-a-filter-key") || "filter";
+    if (!target) return;
+
+    var emptySelector = control.getAttribute("data-a-filter-empty");
+    var empty = emptySelector ? document.querySelector(emptySelector) : null;
+
+    var applyFilter = function () {
+      var value = control.value;
+      var shown = 0;
+      /* Re-read the rows every time: a script may have replaced them since
+         the last pass, and those rows must obey the current selection too. */
+      target.querySelectorAll("[data-" + key + "]").forEach(function (row) {
+        var match = value === "all" || row.getAttribute("data-" + key) === value;
+        row.hidden = !match;
+        if (match) shown += 1;
+      });
+      if (empty) empty.hidden = shown !== 0;
+      target.hidden = shown === 0 && !!empty;
+    };
+
+    control.addEventListener("change", applyFilter);
+    applyFilter();
+
+    /* Rows swapped in by a script are filtered as soon as they land, so a
+       redraw never shows rows the current selection excludes. Only childList
+       is watched, so the `hidden` writes above cannot retrigger this. */
+    new MutationObserver(function () {
+      applyFilter();
+    }).observe(target, { childList: true, subtree: true });
+  });
+
+  /* ---------- pinned columns ----------
+     <table class="a-table" data-a-sticky-columns="2">
+     CSS pins the first column on its own. The kit measures the leading
+     columns so every pinned cell gets its cumulative `--a-sticky-left`, and
+     re-measures when the table resizes, its rows change, or a filter hides
+     rows. Cells spanning past the last pinned column stay unpinned. The
+     scroll wrapper carries `data-a-scrolled` while the table is scrolled
+     sideways, so the divider only shows with columns underneath it. */
+  function stickyCount(table) {
+    var count = parseInt(table.getAttribute("data-a-sticky-columns"), 10);
+    return count > 0 ? count : 0;
+  }
+
+  function layoutSticky(table) {
+    var count = stickyCount(table);
+    var pinned = [];
+    var widths = [];
+    var columns = 0;
+    /* Rows spanned into from above shift where later cells start. */
+    var carried = [];
+    Array.prototype.forEach.call(table.rows, function (row, index) {
+      var taken = carried[index] || [];
+      var column = 0;
+      Array.prototype.forEach.call(row.cells, function (cell) {
+        while (taken[column]) column += 1;
+        var end = column + Math.max(1, cell.colSpan || 1);
+        if (end <= count) {
+          pinned.push({ cell: cell, start: column, end: end });
+          /* Hidden rows measure 0, so a later visible row fills the gap. */
+          if (end === column + 1 && !widths[column]) {
+            widths[column] = cell.getBoundingClientRect().width;
+          }
+        }
+        for (var below = 1; below < (cell.rowSpan || 1); below += 1) {
+          var next = (carried[index + below] = carried[index + below] || []);
+          for (var spanned = column; spanned < end; spanned += 1) {
+            next[spanned] = true;
+          }
+        }
+        column = end;
+        columns = Math.max(columns, end);
+      });
+    });
+
+    var edge = Math.min(count, columns);
+    var offsets = [0];
+    for (var position = 1; position < edge; position += 1) {
+      /* Not rendered yet (a closed disclosure or hidden tab): keep the last
+         layout and measure again once the table has a size. */
+      if (!widths[position - 1]) return;
+      offsets[position] = offsets[position - 1] + widths[position - 1];
+    }
+
+    var keep = new Set();
+    pinned.forEach(function (entry) {
+      keep.add(entry.cell);
+      entry.cell.setAttribute("data-a-sticky", entry.end === edge ? "edge" : "");
+      entry.cell.style.setProperty(
+        "--a-sticky-left",
+        offsets[entry.start] + "px"
+      );
+    });
+    table.querySelectorAll("[data-a-sticky]").forEach(function (cell) {
+      if (keep.has(cell)) return;
+      cell.removeAttribute("data-a-sticky");
+      cell.style.removeProperty("--a-sticky-left");
+    });
+    if (count) table.setAttribute("data-a-sticky-ready", "");
+    else table.removeAttribute("data-a-sticky-ready");
+  }
+
+  document
+    .querySelectorAll(".a-table[data-a-sticky-columns]")
+    .forEach(function (table) {
+      var queued = false;
+      var schedule = function () {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(function () {
+          queued = false;
+          layoutSticky(table);
+        });
+      };
+      layoutSticky(table);
+      if (window.ResizeObserver) new ResizeObserver(schedule).observe(table);
+      /* Only structure and content are watched, so the kit's own
+         `data-a-sticky` and offset writes cannot retrigger this. */
+      new MutationObserver(schedule).observe(table, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["hidden", "colspan", "rowspan", "data-a-sticky-columns"]
+      });
+
+      /* The wrapper element survives a chart moving it into its "Data
+         table" disclosure, so the listener does too. */
+      var scroller = table.closest(".a-table-scroll");
+      if (!scroller) return;
+      var syncScrolled = function () {
+        scroller.toggleAttribute("data-a-scrolled", scroller.scrollLeft > 0);
+      };
+      scroller.addEventListener("scroll", syncScrolled, { passive: true });
+      syncScrolled();
+    });
+
+  /* ---------- tooltips ----------
+     One shared tooltip serves every chart and any element carrying
+     `data-a-tip`. Pointer, keyboard focus, and touch all route through the
+     same show/hide pair, so an exact value is never hover-only. */
+  var tipEl = null;
+  var tipRelease = null;
+  var tipHost = null;
+
+  function tipNode() {
+    if (tipEl) return tipEl;
+    tipEl = document.createElement("div");
+    tipEl.className = "a-tip a-no-print";
+    tipEl.setAttribute("role", "tooltip");
+    tipEl.hidden = true;
+    document.body.appendChild(tipEl);
+    return tipEl;
+  }
+
+  function hideTip() {
+    var release = tipRelease;
+    tipRelease = null;
+    tipHost = null;
+    if (release) release();
+    if (tipEl) tipEl.hidden = true;
+  }
+
+  function positionTip(anchor, pointer) {
+    var el = tipNode();
+    var width = el.offsetWidth;
+    var height = el.offsetHeight;
+    var edge = 8;
+    var x = pointer ? pointer.x + 14 : anchor.left + anchor.width / 2 - width / 2;
+    var y = pointer ? pointer.y - height - 16 : anchor.top - height - 10;
+    if (y < edge) y = pointer ? pointer.y + 22 : anchor.bottom + 10;
+    x = Math.max(edge, Math.min(x, window.innerWidth - width - edge));
+    y = Math.max(edge, Math.min(y, window.innerHeight - height - edge));
+    el.style.transform =
+      "translate(" + Math.round(x) + "px, " + Math.round(y) + "px)";
+  }
+
+  function tipRow(row) {
+    var line = document.createElement("div");
+    line.className =
+      "a-tip__row" + (row.series ? " a-series-" + row.series : "");
+    if (row.series) {
+      var swatch = document.createElement("span");
+      swatch.className = "a-tip__swatch";
+      line.appendChild(swatch);
+    }
+    var name = document.createElement("span");
+    name.className = "a-tip__name";
+    name.textContent = row.name || "";
+    line.appendChild(name);
+    var value = document.createElement("span");
+    value.className = "a-tip__value";
+    value.textContent = row.value == null || row.value === "" ? "—" : row.value;
+    line.appendChild(value);
+    return line;
+  }
+
+  /* `content` is { title, text, rows: [{ name, value, series }] }. `release`
+     runs when the tooltip is replaced or dismissed so the owner can drop its
+     highlight state. */
+  function showTip(content, host, anchor, pointer, release) {
+    if (tipRelease && tipRelease !== release) {
+      var previous = tipRelease;
+      tipRelease = null;
+      previous();
+    }
+    tipRelease = release || null;
+    tipHost = host || null;
+    var el = tipNode();
+    el.textContent = "";
+    if (content.title) {
+      var title = document.createElement("div");
+      title.className = "a-tip__title";
+      title.textContent = content.title;
+      el.appendChild(title);
+    }
+    if (content.text) {
+      var text = document.createElement("div");
+      text.className = "a-tip__text";
+      text.textContent = content.text;
+      el.appendChild(text);
+    }
+    (content.rows || []).forEach(function (row) {
+      el.appendChild(tipRow(row));
+    });
+    el.hidden = false;
+    positionTip(anchor, pointer);
+  }
+
+  /* Escape hatch for hand-authored marks: `data-a-tip` holds the value text
+     and the optional `data-a-tip-title` holds a heading. */
+  function annotatedHost(node) {
+    return node && node.closest ? node.closest("[data-a-tip]") : null;
+  }
+
+  function showAnnotatedTip(host, pointer) {
+    showTip(
+      {
+        title: host.getAttribute("data-a-tip-title") || "",
+        text: host.getAttribute("data-a-tip") || ""
+      },
+      host,
+      host.getBoundingClientRect(),
+      pointer,
+      null
+    );
+  }
+
+  document.addEventListener("pointerover", function (event) {
+    var host = annotatedHost(event.target);
+    if (!host) return;
+    showAnnotatedTip(
+      host,
+      event.pointerType === "touch" ? null : { x: event.clientX, y: event.clientY }
+    );
+  });
+
+  document.addEventListener("pointermove", function (event) {
+    if (!tipHost || event.pointerType === "touch") return;
+    if (!tipHost.hasAttribute || !tipHost.hasAttribute("data-a-tip")) return;
+    if (annotatedHost(event.target) !== tipHost) return;
+    positionTip(tipHost.getBoundingClientRect(), {
+      x: event.clientX,
+      y: event.clientY
+    });
+  });
+
+  document.addEventListener("pointerout", function (event) {
+    var host = annotatedHost(event.target);
+    if (!host || host !== tipHost) return;
+    if (event.relatedTarget && host.contains(event.relatedTarget)) return;
+    hideTip();
+  });
+
+  document.addEventListener("focusin", function (event) {
+    var host = annotatedHost(event.target);
+    if (host) showAnnotatedTip(host, null);
+  });
+
+  document.addEventListener("focusout", function (event) {
+    var host = annotatedHost(event.target);
+    if (!host || host !== tipHost) return;
+    /* A still-hovered mark keeps its tooltip; `pointerout` closes that one. */
+    if (host.matches && host.matches(":hover")) return;
+    hideTip();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") hideTip();
+  });
+
+  window.addEventListener("scroll", hideTip, true);
+  window.addEventListener("resize", hideTip);
+
+  /* ---------- charts ----------
+     <figure class="a-figure" data-a-chart="bar|stacked-bar|line"> wrapping a
+     plain <table> of the same numbers. The table is both the data source and
+     the no-script fallback: the kit draws the chart from it and then keeps it
+     under a disclosure as the exact-value equivalent. Each category gets a
+     hover band that also takes keyboard focus, so pointer, arrow keys, and
+     tap all produce the same readout. */
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var CHART_WIDTH = 640;
+  var CHART_TYPES = { bar: 1, "stacked-bar": 1, line: 1 };
+
+  function svgNode(name, attrs) {
+    var node = document.createElementNS(SVG_NS, name);
+    Object.keys(attrs || {}).forEach(function (key) {
+      node.setAttribute(key, String(attrs[key]));
+    });
+    return node;
+  }
+
+  /* `data-value` wins so cells can stay human-readable ("1,284", "18m 24s"). */
+  function cellNumber(cell) {
+    var explicit = cell.getAttribute("data-value");
+    var text = (explicit === null ? cell.textContent : explicit) || "";
+    var match = text
+      .replace(/\u2212/g, "-")
+      .replace(/,/g, "")
+      .match(/-?\d*\.?\d+/);
+    return match ? parseFloat(match[0]) : null;
+  }
+
+  function readChartTable(table) {
+    var headCells = table.querySelectorAll("thead th");
+    if (headCells.length < 2) return null;
+    var series = [];
+    for (var column = 1; column < headCells.length; column += 1) {
+      series.push(headCells[column].textContent.trim());
+    }
+    var categories = [];
+    table.querySelectorAll("tbody tr").forEach(function (row) {
+      var cells = row.children;
+      if (cells.length < 2) return;
+      /* A hidden row is filtered out, so the chart matches what is listed. */
+      if (row.hidden || row.hasAttribute("data-a-excluded")) return;
+      var point = {
+        label: cells[0].textContent.trim(),
+        row: row,
+        values: [],
+        texts: []
+      };
+      series.forEach(function (name, position) {
+        var cell = cells[position + 1];
+        point.values.push(cell ? cellNumber(cell) : null);
+        point.texts.push(cell ? cell.textContent.trim() : "");
+      });
+      categories.push(point);
+    });
+    return categories.length
+      ? { series: series, categories: categories }
+      : null;
+  }
+
+  function niceCeil(value) {
+    if (!(value > 0)) return 1;
+    var magnitude = Math.pow(10, Math.floor(Math.log(value) / Math.LN10));
+    var steps = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
+    for (var i = 0; i < steps.length; i += 1) {
+      if (value <= steps[i] * magnitude) return steps[i] * magnitude;
+    }
+    return 10 * magnitude;
+  }
+
+  function formatTick(value) {
+    var size = Math.abs(value);
+    if (size >= 1000000) {
+      return (value / 1000000).toFixed(size % 1000000 ? 1 : 0) + "M";
+    }
+    if (size >= 1000) return (value / 1000).toFixed(size % 1000 ? 1 : 0) + "k";
+    return String(Math.round(value * 100) / 100);
+  }
+
+  /* Per-figure render state so a chart can be drawn more than once: the
+     nodes from the previous pass are thrown away and rebuilt from whatever
+     the table says now. */
+  var chartState = new WeakMap();
+
+  function chartTable(figure) {
+    var details = figure.querySelector(".a-chart__data");
+    return (details || figure).querySelector("table");
+  }
+
+  /* The table is the source of truth, so any change to it — a filter hiding
+     rows, new rows, an edited cell — redraws the chart on its own. */
+  function watchChartTable(figure, state) {
+    if (state.observer) return;
+    var queued = false;
+    state.observer = new MutationObserver(function () {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () {
+        queued = false;
+        renderChart(figure);
+      });
+    });
+    /* Watching the disclosure rather than the table keeps the chart live even
+       when a script replaces the whole <table>. */
+    state.observer.observe(state.details, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["hidden", "data-a-excluded", "data-value"]
+    });
+  }
+
+  function renderChart(figure) {
+    var type = figure.getAttribute("data-a-chart");
+    var table = chartTable(figure);
+    if (!CHART_TYPES[type] || !table) return;
+
+    var state = chartState.get(figure);
+    if (!state) {
+      state = { nodes: [], details: null, observer: null, focused: null };
+      chartState.set(figure, state);
+    }
+
+    /* Keeping the reader's place: a re-render restores keyboard focus to the
+       same category when it survives. */
+    var hadFocus = state.nodes.some(function (node) {
+      return node.contains(document.activeElement);
+    });
+    var refocus = hadFocus ? state.focused : null;
+    if (tipHost && figure.contains(tipHost)) hideTip();
+    state.nodes.forEach(function (node) {
+      if (node.parentNode) node.parentNode.removeChild(node);
+    });
+    state.nodes = [];
+
+    if (!state.details) {
+      var source = table.closest(".a-table-scroll") || table;
+      var details = document.createElement("details");
+      details.className = "a-disclosure a-chart__data";
+      var summary = document.createElement("summary");
+      summary.textContent = "Data table";
+      details.appendChild(summary);
+      source.parentNode.insertBefore(details, source);
+      details.appendChild(source);
+      state.details = details;
+    }
+    watchChartTable(figure, state);
+
+    var data = readChartTable(table);
+    if (!data) {
+      var empty = document.createElement("p");
+      empty.className = "a-chart__empty";
+      empty.textContent =
+        figure.getAttribute("data-a-chart-empty") ||
+        "No data for this selection.";
+      figure.insertBefore(empty, state.details);
+      state.nodes.push(empty);
+      state.focused = null;
+      return;
+    }
+
+    var stacked = type === "stacked-bar";
+    var isLine = type === "line";
+    var height = parseFloat(figure.getAttribute("data-a-chart-height")) || 220;
+    var unit = figure.getAttribute("data-a-chart-unit") || "";
+    var tickUnit = unit.length <= 2 ? unit : "";
+    var pad = { top: 14, right: 14, bottom: 30, left: 46 };
+    var plotWidth = CHART_WIDTH - pad.left - pad.right;
+    var plotHeight = height - pad.top - pad.bottom;
+    var bandWidth = plotWidth / data.categories.length;
+
+    var high = 0;
+    var low = 0;
+    data.categories.forEach(function (point) {
+      var sum = 0;
+      point.values.forEach(function (value) {
+        if (value === null) return;
+        sum += value > 0 ? value : 0;
+        low = Math.min(low, value);
+        if (!stacked) high = Math.max(high, value);
+      });
+      if (stacked) high = Math.max(high, sum);
+    });
+    var declaredMax = parseFloat(figure.getAttribute("data-a-chart-max"));
+    var maxY = isFinite(declaredMax) ? declaredMax : niceCeil(high);
+    var minY = low < 0 ? -niceCeil(-low) : 0;
+    var span = maxY - minY || 1;
+
+    var scaleY = function (value) {
+      return pad.top + ((maxY - value) / span) * plotHeight;
+    };
+    var centerX = function (index) {
+      return pad.left + bandWidth * (index + 0.5);
+    };
+    var describe = function (index) {
+      var point = data.categories[index];
+      return (
+        point.label +
+        ": " +
+        data.series
+          .map(function (name, position) {
+            return name + " " + (point.texts[position] || "no value");
+          })
+          .join(", ")
+      );
+    };
+
+    var caption = figure.querySelector("figcaption");
+    var svg = svgNode("svg", {
+      class: "a-chart",
+      viewBox: "0 0 " + CHART_WIDTH + " " + height,
+      role: "group",
+      "aria-label":
+        (figure.getAttribute("data-a-chart-label") ||
+          (caption ? caption.textContent.trim() : "Chart")) +
+        ". Use the arrow keys to read each value."
+    });
+
+    var grid = svgNode("g", { class: "a-chart__grid" });
+    var axis = svgNode("g", { class: "a-chart__axis" });
+    for (var tick = 0; tick <= 4; tick += 1) {
+      var value = minY + (span * tick) / 4;
+      var y = scaleY(value);
+      grid.appendChild(
+        svgNode("line", {
+          x1: pad.left,
+          y1: y,
+          x2: CHART_WIDTH - pad.right,
+          y2: y
+        })
+      );
+      var tickLabel = svgNode("text", {
+        x: pad.left - 8,
+        y: y + 3.5,
+        "text-anchor": "end"
+      });
+      tickLabel.textContent = formatTick(value) + tickUnit;
+      axis.appendChild(tickLabel);
+    }
+
+    var labelStep = Math.ceil(data.categories.length / 8);
+    data.categories.forEach(function (point, index) {
+      if (index % labelStep) return;
+      var text = svgNode("text", {
+        x: centerX(index),
+        y: height - 10,
+        "text-anchor": "middle"
+      });
+      text.textContent = point.label;
+      axis.appendChild(text);
+    });
+
+    var plot = svgNode("g", { class: "a-chart__plot" });
+    /* Past ~30 points a marker per category reads as a scatter plot instead
+       of a line, so dense series drop to a bare stroke and only the active
+       point is drawn (CSS gives it a radius again). */
+    var pointRadius = data.categories.length > 30 ? 0 : 2.75;
+    if (isLine) {
+      data.series.forEach(function (name, position) {
+        /* A missing value breaks the line rather than bridging the gap. */
+        var segments = [[]];
+        data.categories.forEach(function (point, index) {
+          var value = point.values[position];
+          if (value === null) {
+            if (segments[segments.length - 1].length) segments.push([]);
+            return;
+          }
+          segments[segments.length - 1].push(
+            centerX(index) + "," + scaleY(value)
+          );
+          plot.appendChild(
+            svgNode("circle", {
+              class: "a-chart__point a-series-" + (position + 1),
+              cx: centerX(index),
+              cy: scaleY(value),
+              r: pointRadius,
+              "data-a-index": index
+            })
+          );
+        });
+        segments.forEach(function (coordinates) {
+          if (!coordinates.length) return;
+          plot.insertBefore(
+            svgNode("polyline", {
+              class: "a-chart__series a-series-" + (position + 1),
+              points: coordinates.join(" ")
+            }),
+            plot.firstChild
+          );
+        });
+      });
+    } else {
+      var inset = bandWidth * 0.18;
+      var slot = (bandWidth - inset * 2) / (stacked ? 1 : data.series.length);
+      var baseline = scaleY(Math.max(minY, 0));
+      data.categories.forEach(function (point, index) {
+        var stackTop = 0;
+        data.series.forEach(function (name, position) {
+          var value = point.values[position];
+          if (value === null) return;
+          var from = baseline;
+          var to;
+          if (stacked) {
+            from = scaleY(stackTop);
+            stackTop += value;
+            to = scaleY(stackTop);
+          } else {
+            to = scaleY(value);
+          }
+          plot.appendChild(
+            svgNode("rect", {
+              class: "a-chart__bar a-series-" + (position + 1),
+              x:
+                pad.left +
+                bandWidth * index +
+                inset +
+                slot * (stacked ? 0 : position),
+              y: Math.min(from, to),
+              width: Math.max(1, slot - 2),
+              height: Math.max(1, Math.abs(to - from)),
+              rx: 2,
+              "data-a-index": index
+            })
+          );
+        });
+      });
+    }
+
+    var crosshair = svgNode("line", {
+      class: "a-chart__crosshair",
+      x1: pad.left,
+      x2: pad.left,
+      y1: pad.top,
+      y2: pad.top + plotHeight,
+      hidden: "hidden"
+    });
+
+    var overlay = svgNode("g", { class: "a-chart__bands" });
+    var bands = data.categories.map(function (point, index) {
+      var band = svgNode("rect", {
+        class: "a-chart__band",
+        x: pad.left + bandWidth * index,
+        y: pad.top,
+        width: bandWidth,
+        height: plotHeight,
+        tabindex: index === 0 ? 0 : -1,
+        role: "img",
+        "aria-label": describe(index)
+      });
+      overlay.appendChild(band);
+      return band;
+    });
+
+    svg.appendChild(grid);
+    svg.appendChild(axis);
+    svg.appendChild(plot);
+    svg.appendChild(crosshair);
+    svg.appendChild(overlay);
+
+    figure.insertBefore(svg, state.details);
+    state.nodes.push(svg);
+
+    if (data.series.length > 1) {
+      var legend = document.createElement("ul");
+      legend.className = "a-legend";
+      data.series.forEach(function (name, position) {
+        var item = document.createElement("li");
+        item.className = "a-series-" + (position + 1);
+        var swatch = document.createElement("span");
+        swatch.className = "a-legend__swatch";
+        item.appendChild(swatch);
+        item.appendChild(document.createTextNode(name));
+        legend.appendChild(item);
+      });
+      figure.insertBefore(legend, state.details);
+      state.nodes.push(legend);
+    }
+
+    var readout = document.createElement("p");
+    readout.className = "a-visually-hidden";
+    readout.setAttribute("aria-live", "polite");
+    figure.appendChild(readout);
+    state.nodes.push(readout);
+
+    var clear = function () {
+      bands.forEach(function (band) {
+        band.removeAttribute("data-a-active");
+      });
+      plot.querySelectorAll("[data-a-index]").forEach(function (mark) {
+        mark.removeAttribute("data-a-active");
+      });
+      crosshair.setAttribute("hidden", "hidden");
+      readout.textContent = "";
+    };
+
+    var activate = function (index, pointer) {
+      if (index < 0 || index >= bands.length) return;
+      clear();
+      bands[index].setAttribute("data-a-active", "true");
+      plot
+        .querySelectorAll('[data-a-index="' + index + '"]')
+        .forEach(function (mark) {
+          mark.setAttribute("data-a-active", "true");
+        });
+      if (isLine) {
+        crosshair.setAttribute("x1", centerX(index));
+        crosshair.setAttribute("x2", centerX(index));
+        crosshair.removeAttribute("hidden");
+      }
+      readout.textContent = describe(index);
+      showTip(
+        {
+          title: data.categories[index].label,
+          rows: data.series.map(function (name, position) {
+            return {
+              name: name,
+              value: data.categories[index].texts[position],
+              series: position + 1
+            };
+          })
+        },
+        bands[index],
+        bands[index].getBoundingClientRect(),
+        pointer,
+        clear
+      );
+    };
+
+    /* -1 outside the plot area, so the axis and margins read as no category. */
+    var indexAt = function (clientX) {
+      var box = svg.getBoundingClientRect();
+      if (!box.width) return -1;
+      var local = ((clientX - box.left) / box.width) * CHART_WIDTH;
+      if (local < pad.left || local > pad.left + plotWidth) return -1;
+      var index = Math.floor((local - pad.left) / bandWidth);
+      return Math.max(0, Math.min(data.categories.length - 1, index));
+    };
+
+    svg.addEventListener("pointermove", function (event) {
+      if (event.pointerType === "touch") return;
+      var index = indexAt(event.clientX);
+      if (index === -1) {
+        if (bands.indexOf(document.activeElement) === -1) hideTip();
+        return;
+      }
+      activate(index, { x: event.clientX, y: event.clientY });
+    });
+
+    svg.addEventListener("pointerdown", function (event) {
+      if (event.pointerType !== "touch") return;
+      activate(indexAt(event.clientX), null);
+    });
+
+    /* Touch leaves as soon as the finger lifts, so a tap keeps its readout. */
+    svg.addEventListener("pointerleave", function (event) {
+      if (event.pointerType === "touch") return;
+      if (bands.indexOf(document.activeElement) === -1) hideTip();
+    });
+
+    bands.forEach(function (band, index) {
+      band.addEventListener("focus", function () {
+        state.focused = {
+          index: index,
+          row: data.categories[index].row,
+          label: data.categories[index].label
+        };
+        activate(index, null);
+      });
+      band.addEventListener("blur", function () {
+        if (tipHost === band) hideTip();
+      });
+    });
+
+    svg.addEventListener("keydown", function (event) {
+      var current = bands.indexOf(document.activeElement);
+      if (current === -1) return;
+      var next = current;
+      if (event.key === "ArrowRight") next = current + 1;
+      else if (event.key === "ArrowLeft") next = current - 1;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = bands.length - 1;
+      else return;
+      event.preventDefault();
+      next = Math.max(0, Math.min(bands.length - 1, next));
+      bands.forEach(function (band, position) {
+        band.setAttribute("tabindex", position === next ? "0" : "-1");
+      });
+      bands[next].focus();
+    });
+
+    if (refocus) {
+      /* The same row, not the same slot: filtering rows above the reader's
+         position must not move them onto a different bar. */
+      var target = data.categories.findIndex(function (category) {
+        return category.row === refocus.row;
+      });
+      /* Rows rebuilt wholesale lose their identity, so fall back to the label
+         and then to the old slot. */
+      if (target === -1) {
+        target = data.categories.findIndex(function (category) {
+          return category.label === refocus.label;
+        });
+      }
+      if (target === -1) target = Math.min(refocus.index, bands.length - 1);
+      bands.forEach(function (band, position) {
+        band.setAttribute("tabindex", position === target ? "0" : "-1");
+      });
+      bands[target].focus();
+    }
+  }
+
+  function renderCharts(target) {
+    if (target === undefined || target === null) {
+      document.querySelectorAll("[data-a-chart]").forEach(renderChart);
+      return;
+    }
+    var scope =
+      typeof target === "string" ? document.querySelector(target) : target;
+    if (!scope) return;
+    if (scope.matches && scope.matches("[data-a-chart]")) renderChart(scope);
+    else scope.querySelectorAll("[data-a-chart]").forEach(renderChart);
+  }
+
+  renderCharts();
+
+  /* The only public surface of the kit: artifacts that swap or filter a
+     chart's rows themselves can force a redraw, though the table observer
+     above already covers ordinary DOM edits. */
+  window.artifactKit = window.artifactKit || {};
+  window.artifactKit.renderCharts = renderCharts;
+
+  /* Print carries the numbers, not the hover: expand every chart's data
+     table before the page is rendered. */
+  var printReopened = [];
+  window.addEventListener("beforeprint", function () {
+    hideTip();
+    document.querySelectorAll(".a-chart__data").forEach(function (details) {
+      if (details.open) return;
+      printReopened.push(details);
+      details.open = true;
+    });
+  });
+
+  window.addEventListener("afterprint", function () {
+    printReopened.forEach(function (details) {
+      details.open = false;
+    });
+    printReopened = [];
+  });
+
+  /* ---------- diagram: pan, zoom, select ----------
+     Pointer drag and wheel pan/zoom the viewport group; arrow keys and
+     +/-/0 do the same from the keyboard so the diagram is operable without
+     a pointing device. Node clicks (or Enter/Space) update the inspector. */
+  document.querySelectorAll("[data-a-diagram]").forEach(function (diagram) {
+    var svg = diagram.querySelector("[data-a-diagram-canvas]");
+    var viewport = diagram.querySelector("[data-a-diagram-viewport]");
+    if (!svg || !viewport) return;
+
+    var view = { x: 0, y: 0, scale: 1 };
+    var drag = null;
+
+    var render = function () {
+      viewport.setAttribute(
+        "transform",
+        "translate(" + view.x + " " + view.y + ") scale(" + view.scale + ")"
+      );
+    };
+
+    var zoomBy = function (factor) {
+      view.scale = Math.min(2.5, Math.max(0.5, view.scale * factor));
+      render();
+    };
+
+    svg.addEventListener("pointerdown", function (event) {
+      if (event.target.closest("[data-a-node]")) return;
+      drag = { x: event.clientX, y: event.clientY };
+      svg.setPointerCapture(event.pointerId);
+    });
+
+    svg.addEventListener("pointermove", function (event) {
+      if (!drag) return;
+      view.x += event.clientX - drag.x;
+      view.y += event.clientY - drag.y;
+      drag = { x: event.clientX, y: event.clientY };
+      render();
+    });
+
+    var endDrag = function () {
+      drag = null;
+    };
+    svg.addEventListener("pointerup", endDrag);
+    svg.addEventListener("pointercancel", endDrag);
+
+    svg.addEventListener(
+      "wheel",
+      function (event) {
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        zoomBy(event.deltaY < 0 ? 1.1 : 0.9);
+      },
+      { passive: false }
+    );
+
+    diagram.addEventListener("keydown", function (event) {
+      var pan = { ArrowUp: [0, 24], ArrowDown: [0, -24], ArrowLeft: [24, 0], ArrowRight: [-24, 0] }[
+        event.key
+      ];
+      if (pan && !event.target.closest("[data-a-node]")) {
+        event.preventDefault();
+        view.x += pan[0];
+        view.y += pan[1];
+        render();
+        return;
+      }
+      if (event.key === "+" || event.key === "=") zoomBy(1.1);
+      else if (event.key === "-") zoomBy(0.9);
+      else if (event.key === "0") {
+        view = { x: 0, y: 0, scale: 1 };
+        render();
+      }
+    });
+
+    diagram.querySelectorAll("[data-a-zoom]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var action = button.getAttribute("data-a-zoom");
+        if (action === "in") zoomBy(1.15);
+        else if (action === "out") zoomBy(0.87);
+        else {
+          view = { x: 0, y: 0, scale: 1 };
+          render();
+        }
+      });
+    });
+
+    var inspector = diagram.querySelector("[data-a-inspector]");
+    var select = function (node) {
+      diagram.querySelectorAll("[data-a-node]").forEach(function (other) {
+        other.setAttribute("aria-current", String(other === node));
+      });
+      if (!inspector) return;
+      var title = inspector.querySelector("[data-a-inspector-title]");
+      var body = inspector.querySelector("[data-a-inspector-body]");
+      if (title) title.textContent = node.getAttribute("data-a-title") || "";
+      if (body) body.textContent = node.getAttribute("data-a-detail") || "";
+    };
+
+    diagram.querySelectorAll("[data-a-node]").forEach(function (node) {
+      node.addEventListener("click", function () {
+        select(node);
+      });
+      node.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        select(node);
+      });
+    });
+
+    render();
+  });
+})();
+    </script>
+  </body>
+</html>
